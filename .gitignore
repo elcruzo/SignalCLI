@@ -1,5 +1,3 @@
-# SignalCLI specific .gitignore
-
 # Python
 __pycache__/
 *.py[cod]
@@ -18,96 +16,134 @@ parts/
 sdist/
 var/
 wheels/
+share/python-wheels/
 *.egg-info/
 .installed.cfg
 *.egg
 MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
 
-# Virtual environments
-.env
-.venv
-env/
+# Virtual Environment
 venv/
 ENV/
-env.bak/
-venv.bak/
+env/
+.venv
+.env
 
-# IDEs and editors
+# IDE
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-
-# OS generated files
 .DS_Store
-.DS_Store?
-._*
-Thumbs.db
 
-# SignalCLI specific
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Logs
 logs/
 *.log
-cache/
-.cache/
 
-# Model files (too large for git)
-models/
-*.gguf
-*.bin
-*.safetensors
-*.pt
-*.pth
+# Models
+models/*.gguf
+models/*.bin
+models/*.safetensors
+models/*.pt
+models/*.pth
+models/*.onnx
+!models/.gitkeep
 
-# Vector store data
-data/vector_store/
-data/embeddings/
-data/indexes/
+# Data
+data/
+!data/schemas/
+*.db
+*.sqlite
+*.sqlite3
 
-# Configuration with secrets
-config/secrets.yaml
-config/api_keys.yaml
+# Environment
+.env
 .env.local
-.env.production
+.env.*.local
+*.local.yaml
+secrets/
 
-# Docker volumes and data
-docker/data/
-volumes/
+# Docker
+.docker/
+docker-compose.override.yml
 
-# API responses and cache
-responses/
-api_cache/
-
-# Test artifacts
-test-results/
-.pytest_cache/
-.coverage
-htmlcov/
-coverage.xml
-
-# Prometheus and monitoring data
-prometheus/data/
-grafana/data/
-
-# Weaviate data
-weaviate/
-
-# JSONformer cache
-jsonformer_cache/
+# Cache
+.cache/
+*.cache
+redis-data/
+weaviate-data/
+prometheus-data/
+grafana-data/
 
 # Temporary files
-tmp/
-temp/
 *.tmp
-
-# Backup files
+*.temp
+.~*
+*.swp
 *.bak
-*.backup
 *.orig
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb
 
 # Documentation build
 docs/_build/
-docs/build/
+docs/.sphinx/
+site/
 
-# FastAPI static files
-static/uploads/
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+# Monitoring data
+prometheus/data/
+grafana/data/
+metrics/
+
+# Certificates and keys
+*.key
+*.pem
+*.cert
+*.crt
+*.csr
+
+# Package managers
+node_modules/
+yarn-error.log
+
+# Python package build
+*.pyd
+*.pyo
+.python-version
+
+# Ruff
+.ruff_cache/
+
+# Pre-commit
+.pre-commit-config.yaml.lock
