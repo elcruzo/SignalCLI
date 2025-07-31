@@ -1,0 +1,58 @@
+{
+  "name": "list_response",
+  "description": "Response format for list-based queries",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "Title of the list"
+      },
+      "items": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "name": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "rank": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": ["name", "description"]
+        },
+        "minItems": 1,
+        "maxItems": 10
+      },
+      "total_count": {
+        "type": "integer",
+        "description": "Total number of items if more exist"
+      }
+    },
+    "required": ["title", "items"],
+    "additionalProperties": false
+  },
+  "examples": [
+    {
+      "title": "Top Programming Languages",
+      "items": [
+        {
+          "name": "Python",
+          "description": "High-level, interpreted language popular for data science",
+          "rank": 1
+        },
+        {
+          "name": "JavaScript",
+          "description": "Language of the web, used for frontend and backend",
+          "rank": 2
+        }
+      ],
+      "total_count": 2
+    }
+  ]
+}

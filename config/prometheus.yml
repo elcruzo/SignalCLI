@@ -1,0 +1,37 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'signalcli-monitor'
+
+rule_files:
+  - 'alerts/*.yml'
+
+scrape_configs:
+  # SignalCLI API metrics
+  - job_name: 'signalcli-api'
+    static_configs:
+      - targets: ['signalcli-api:8000']
+    metrics_path: '/metrics'
+    scrape_interval: 10s
+
+  # Weaviate metrics
+  - job_name: 'weaviate'
+    static_configs:
+      - targets: ['weaviate:2112']
+    metrics_path: '/metrics'
+
+  # Redis exporter
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+
+  # Node exporter for system metrics
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ['alertmanager:9093']

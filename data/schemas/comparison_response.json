@@ -1,0 +1,73 @@
+{
+  "name": "comparison_response",
+  "description": "Response format for comparison queries",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "subject_a": {
+        "type": "string",
+        "description": "First item being compared"
+      },
+      "subject_b": {
+        "type": "string",
+        "description": "Second item being compared"
+      },
+      "similarities": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        },
+        "description": "List of similarities"
+      },
+      "differences": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "aspect": {
+              "type": "string"
+            },
+            "subject_a_value": {
+              "type": "string"
+            },
+            "subject_b_value": {
+              "type": "string"
+            }
+          },
+          "required": ["aspect", "subject_a_value", "subject_b_value"]
+        },
+        "description": "List of differences"
+      },
+      "recommendation": {
+        "type": "string",
+        "description": "Which one to choose and when"
+      }
+    },
+    "required": ["subject_a", "subject_b", "similarities", "differences"],
+    "additionalProperties": false
+  },
+  "examples": [
+    {
+      "subject_a": "Python",
+      "subject_b": "JavaScript",
+      "similarities": [
+        "Both are high-level languages",
+        "Both support object-oriented programming",
+        "Both have large ecosystems"
+      ],
+      "differences": [
+        {
+          "aspect": "Type System",
+          "subject_a_value": "Dynamic, strongly typed",
+          "subject_b_value": "Dynamic, weakly typed"
+        },
+        {
+          "aspect": "Primary Use",
+          "subject_a_value": "Data science, backend, automation",
+          "subject_b_value": "Web development, frontend, backend"
+        }
+      ],
+      "recommendation": "Choose Python for data science and scripting, JavaScript for web development"
+    }
+  ]
+}

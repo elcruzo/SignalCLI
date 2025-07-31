@@ -1,0 +1,53 @@
+groups:
+  - name: signalcli
+    interval: 30s
+    rules:
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(queries_total{status="error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is {{ $value | humanizePercentage }} for {{ $labels.instance }}"
+
+      # High latency
+      - alert: HighLatency
+        expr: histogram_quantile(0.95, rate(query_latency_ms_bucket[5m])) > 5000
+        for: 3m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High query latency"
+          description: "95th percentile latency is {{ $value }}ms"
+
+      # Service down
+      - alert: ServiceDown
+        expr: up{job="signalcli-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "SignalCLI API is down"
+          description: "SignalCLI API has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemFree_bytes) / node_memory_MemTotal_bytes > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Memory usage is above 90% ({{ $value | humanizePercentage }})"
+
+      # Vector store unavailable
+      - alert: VectorStoreDown
+        expr: up{job="weaviate"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Vector store is down"
+          description: "Weaviate vector store has been down for more than 2 minutes"

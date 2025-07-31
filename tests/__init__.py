@@ -1,0 +1,1 @@
+"""SignalCLI test suite."""
