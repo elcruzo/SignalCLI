@@ -7,15 +7,17 @@ from src.core.exceptions import CacheError
 from .redis_cache import RedisCache
 from .memory_cache import MemoryCache
 
+
 def create_cache(config: Dict[str, Any]) -> ICache:
     """Factory function to create cache instances."""
-    provider = config.get('provider', 'memory')
-    
-    if provider == 'redis':
+    provider = config.get("provider", "memory")
+
+    if provider == "redis":
         return RedisCache(config)
-    elif provider == 'memory':
+    elif provider == "memory":
         return MemoryCache(config)
     else:
         raise CacheError(f"Unknown cache provider: {provider}")
 
-__all__ = ['create_cache', 'RedisCache', 'MemoryCache']
+
+__all__ = ["create_cache", "RedisCache", "MemoryCache"]
