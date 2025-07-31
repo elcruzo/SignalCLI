@@ -2,7 +2,7 @@
 
 ## Product Vision
 
-SignalCLI addresses the need for a reliable, observable, and production-ready command-line interface for AI-powered knowledge retrieval. Unlike simple chatbot implementations, SignalCLI emphasizes JSON safety, system observability, and enterprise-grade reliability.
+SignalCLI is an enterprise-grade AI platform that addresses the need for reliable, observable, and production-ready AI services. It provides a command-line interface, REST API, and Model Context Protocol (MCP) server for AI-powered knowledge retrieval and tool execution. Unlike simple chatbot implementations, SignalCLI emphasizes JSON safety, system observability, enterprise-grade reliability, and seamless AI interoperability.
 
 ## Problem Statement
 
@@ -17,6 +17,8 @@ SignalCLI addresses the need for a reliable, observable, and production-ready co
 - **Data Scientists**: Require structured outputs for downstream processing
 - **Backend Developers**: Want AI capabilities with proper monitoring and logging
 - **Enterprise Teams**: Need compliance, security, and cost tracking
+- **AI Assistant Developers**: Need standardized protocols for tool integration
+- **Platform Engineers**: Require scalable, observable AI infrastructure
 
 ## Design Principles
 
@@ -59,6 +61,12 @@ Graceful degradation and comprehensive error handling.
 
 ### 4. Local-First
 Prioritize local execution for privacy and reliability.
+
+### 5. Protocol Compliance
+Strict adherence to standards (JSON-RPC 2.0, MCP specification) for interoperability.
+
+### 6. Context-Aware Intelligence
+Smart routing and tool selection based on query analysis and usage patterns.
 
 ## Technical Architecture
 
@@ -136,7 +144,60 @@ class LLMEngine:
 - KV-cache optimization
 - Batch processing support
 
-#### 4. Observability System
+#### 4. MCP Server
+**Responsibility**: Protocol-compliant tool serving for AI assistants
+
+```python
+class MCPServer:
+    def __init__(self, tool_registry: ToolRegistry):
+        self.tool_registry = tool_registry
+        self.sessions = {}
+        self.router = ContextAwareRouter()
+    
+    async def handle_request(self, request: MCPRequest) -> MCPResponse:
+        # Validate session
+        if request.method != "initialize" and not self.is_initialized(request.session_id):
+            return error_response("Session not initialized")
+        
+        # Route to handler
+        handler = self.get_handler(request.method)
+        return await handler(request)
+```
+
+**Key Features**:
+- JSON-RPC 2.0 compliance
+- Session lifecycle management
+- Tool discovery and introspection
+- Streaming support (WebSocket/SSE)
+- Context propagation between tools
+
+#### 5. Context-Aware Router
+**Responsibility**: Intelligent tool selection and routing
+
+```python
+class ContextAwareRouter:
+    def __init__(self, embedding_model: EmbeddingModel):
+        self.embedding_model = embedding_model
+        self.routing_strategies = [
+            CapabilityMatcher(),
+            SemanticSimilarity(embedding_model),
+            LoadBalancer(),
+            CostOptimizer()
+        ]
+    
+    async def route(self, request: Dict[str, Any]) -> str:
+        context = self.extract_context(request)
+        scores = {}
+        
+        for strategy in self.routing_strategies:
+            tool_scores = await strategy.score_tools(context)
+            # Weighted combination of scores
+            scores = self.combine_scores(scores, tool_scores)
+        
+        return self.select_best_tool(scores)
+```
+
+#### 6. Observability System
 **Responsibility**: Metrics, logging, and monitoring
 
 ```python
@@ -267,15 +328,59 @@ class HybridSearch:
         return self.rerank(combined, query)[:top_k]
 ```
 
+## MCP Protocol Design
+
+### Tool Design Pattern
+```python
+class MCPTool(Tool):
+    """Base class for MCP-compliant tools"""
+    
+    async def execute(self, params: Dict[str, Any], context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Returns MCP-compliant content array"""
+        try:
+            # Validate input
+            self.validate_input(params)
+            
+            # Execute tool logic
+            result = await self._execute_logic(params, context)
+            
+            # Format as MCP content
+            return self._format_content(result)
+        except Exception as e:
+            return [{
+                "type": "text",
+                "text": f"Error: {str(e)}"
+            }]
+```
+
+### Session Management
+```python
+class MCPSession:
+    def __init__(self, session_id: str):
+        self.id = session_id
+        self.initialized = False
+        self.client_info = {}
+        self.context = {}
+        self.created_at = datetime.utcnow()
+        self.last_activity = datetime.utcnow()
+    
+    def is_expired(self, timeout_minutes: int = 30) -> bool:
+        return (datetime.utcnow() - self.last_activity) > timedelta(minutes=timeout_minutes)
+```
+
 ## Error Handling Strategy
 
 ### Error Categories
-1. **User Errors**: Invalid input, malformed queries
-2. **System Errors**: Model failures, vector store unavailable
-3. **Performance Errors**: Timeouts, memory issues
-4. **External Errors**: Network failures, API limits
+1. **Protocol Errors**: JSON-RPC parse errors, invalid requests
+2. **MCP Errors**: Tool not found, session not initialized
+3. **User Errors**: Invalid input, malformed queries
+4. **System Errors**: Model failures, vector store unavailable
+5. **Performance Errors**: Timeouts, memory issues
+6. **External Errors**: Network failures, API limits
 
-### Error Response Format
+### Error Response Formats
+
+#### REST API Error
 ```json
 {
     "success": false,
@@ -286,6 +391,22 @@ class HybridSearch:
             "timeout_seconds": 30,
             "tokens_processed": 1024,
             "retry_suggested": true
+        }
+    }
+}
+```
+
+#### MCP Error (JSON-RPC)
+```json
+{
+    "jsonrpc": "2.0",
+    "id": "request-123",
+    "error": {
+        "code": -32002,
+        "message": "Tool execution failed",
+        "data": {
+            "tool": "rag_query",
+            "reason": "Vector store unavailable"
         }
     },
     "metadata": {
@@ -363,8 +484,11 @@ class InputValidator:
 # Development setup
 python -m venv venv
 source venv/bin/activate
+pip install -r requirements.txt
 pip install -r requirements-dev.txt
-docker-compose -f docker-compose.dev.yml up
+
+# Start all services
+./scripts/start_all.sh local
 ```
 
 ### Production Deployment
@@ -372,41 +496,93 @@ docker-compose -f docker-compose.dev.yml up
 # docker-compose.prod.yml
 version: '3.8'
 services:
+  # Infrastructure
   weaviate:
     image: semitechnologies/weaviate:1.22.4
     restart: always
+    volumes:
+      - weaviate-data:/var/lib/weaviate
     
-  signalcli:
+  redis:
+    image: redis:7-alpine
+    restart: always
+    volumes:
+      - redis-data:/data
+    
+  # Application servers
+  signalcli-api:
     image: signalcli:latest
     restart: always
     depends_on:
       - weaviate
+      - redis
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
+    
+  signalcli-mcp:
+    image: signalcli-mcp:latest
+    restart: always
+    depends_on:
+      - weaviate
+      - redis
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    
+  # Load balancer
+  nginx:
+    image: nginx:alpine
+    restart: always
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    depends_on:
+      - signalcli-api
+      - signalcli-mcp
+
+volumes:
+  weaviate-data:
+  redis-data:
 ```
 
 ## Future Roadmap
 
-### Phase 1 (MVP)
+### Phase 1 (MVP) ✅ COMPLETED
 - Basic CLI with JSON output
 - Local LLM inference
-- Simple vector search
+- Simple vector search  
 - Basic observability
 
-### Phase 2 (Enhanced)
-- Advanced RAG techniques
-- Multi-model support
-- Web dashboard
-- Enhanced security
+### Phase 2 (Enhanced) ✅ COMPLETED
+- MCP server for AI interoperability
+- Advanced RAG with hybrid search
+- Multi-vector store support
+- Context-aware routing
+- Streaming support
+- Enhanced security (auth, rate limiting)
 
-### Phase 3 (Enterprise)
-- Distributed deployment
-- Advanced analytics
-- Plugin system
-- Enterprise integrations
+### Phase 3 (Enterprise) - IN PROGRESS
+- Distributed deployment (Kubernetes)
+- Advanced analytics dashboard
+- Plugin system for custom tools
+- Enterprise integrations (SSO, LDAP)
+- Multi-tenant support
+- Federated MCP servers
+
+### Phase 4 (Platform)
+- GraphQL API
+- Tool marketplace
+- Visual workflow builder
+- Auto-scaling based on load
+- Global CDN for models
+- SLA guarantees
 
 ## Success Metrics
 

@@ -2,7 +2,40 @@
 
 ## System Overview
 
-SignalCLI is built as a microservices architecture with clear separation of concerns between the CLI interface, RAG pipeline, LLM inference, and observability components.
+SignalCLI is built as a modular, microservices-oriented architecture with clear separation of concerns. The system includes a CLI interface, REST API server, MCP (Model Context Protocol) server, RAG pipeline, LLM inference engine, and comprehensive observability components.
+
+## Architecture Diagram
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                          External Clients                                │
+├─────────────┬─────────────┬─────────────┬────────────┬─────────────────┤
+│   CLI Tool  │  REST API   │ MCP Clients │ WebSocket  │   AI Assistants │
+└──────┬──────┴──────┬──────┴──────┬──────┴─────┬──────┴────────┬────────┘
+       │             │             │            │               │
+       ▼             ▼             ▼            ▼               ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                         API Gateway Layer                                │
+├─────────────┬──────────────────┬──────────────────┬────────────────────┤
+│  CLI Client │  FastAPI Server  │   MCP Server     │  Streaming Handler  │
+│   (Click)   │   (Port 8000)    │  (Port 8001)     │  (WebSocket/SSE)   │
+└──────┬──────┴────────┬─────────┴────────┬─────────┴─────────┬──────────┘
+       │               │                  │                   │
+       ▼               ▼                  ▼                   ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                      Application Layer                                   │
+├──────────────┬──────────────┬──────────────┬──────────────┬────────────┤
+│ RAG Pipeline │ Tool Registry│Context Router│ Permissions  │   Cache     │
+└──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┴────┬───────┘
+       │              │              │              │             │
+       ▼              ▼              ▼              ▼             ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                     Infrastructure Layer                                 │
+├────────────┬────────────┬────────────┬────────────┬────────────────────┤
+│ LLM Engine │Vector Store│ Embeddings │   Redis    │   Observability    │
+│   (GGUF)   │ (Weaviate) │(Transformers)│  Cache   │(Prometheus/Grafana)│
+└────────────┴────────────┴────────────┴────────────┴────────────────────┘
+```
 
 ## Core Components
 
@@ -25,7 +58,34 @@ def main(query: str, schema: Optional[str], verbose: bool):
     # CLI logic here
 ```
 
-### 2. RAG Pipeline (`src/rag/`)
+### 2. MCP Server (`src/mcp/`)
+- **Purpose**: Model Context Protocol server for AI interoperability
+- **Technologies**: FastAPI, WebSocket, JSON-RPC 2.0
+- **Responsibilities**:
+  - Protocol-compliant tool discovery
+  - Session management
+  - Request routing and execution
+  - Streaming support
+
+```python
+# MCP server structure
+class MCPServer:
+    def __init__(self, tool_registry: ToolRegistry, router: ContextAwareRouter):
+        self.tool_registry = tool_registry
+        self.router = router
+        self._sessions = {}
+    
+    async def handle_request(self, request: MCPRequest) -> MCPResponse:
+        # Route to appropriate handler based on method
+        if request.method == "initialize":
+            return await self._handle_initialize(request)
+        elif request.method == "tools/list":
+            return await self._handle_tools_list(request)
+        elif request.method == "tools/call":
+            return await self._handle_tools_call(request)
+```
+
+### 3. RAG Pipeline (`src/application/rag/`)
 - **Purpose**: Retrieval-augmented generation workflow
 - **Technologies**: Weaviate, sentence-transformers, LangChain
 - **Components**:
@@ -48,7 +108,7 @@ class RAGPipeline:
         # 4. Generate response
 ```
 
-### 3. LLM Engine (`src/llm/`)
+### 4. LLM Engine (`src/infrastructure/llm/`)
 - **Purpose**: Local language model inference
 - **Technologies**: llamafile, GGUF, transformers
 - **Features**:
@@ -57,7 +117,7 @@ class RAGPipeline:
   - JSON-constrained generation via JSONformer
   - GPU/CPU optimization
 
-### 4. FastAPI Backend (`src/api/`)
+### 5. FastAPI Backend (`src/api/`)
 - **Purpose**: HTTP API for programmatic access
 - **Technologies**: FastAPI, Pydantic, uvicorn
 - **Endpoints**:
@@ -68,6 +128,7 @@ class RAGPipeline:
 
 ## Data Flow
 
+### CLI Flow
 ```mermaid
 graph TD
     A[User Query] --> B[CLI Parser]
@@ -81,6 +142,46 @@ graph TD
     I --> J[Observability Logger]
     J --> K[Formatted Output]
 ```
+
+### MCP Flow
+```mermaid
+graph TD
+    A[AI Assistant] --> B[MCP Client]
+    B --> C[JSON-RPC Request]
+    C --> D[MCP Server]
+    D --> E[Session Validation]
+    E --> F[Tool Router]
+    F --> G[Tool Execution]
+    G --> H[Result Formatting]
+    H --> I[JSON-RPC Response]
+    I --> J[MCP Client]
+    J --> K[AI Assistant]
+```
+
+## MCP Server Architecture
+
+### Protocol Implementation
+- **JSON-RPC 2.0**: Standard protocol for all communications
+- **Session Management**: Stateful sessions with initialization
+- **Tool Discovery**: Dynamic tool registration and capabilities
+- **Error Handling**: Standard error codes and recovery
+
+### Tool System
+```python
+# Tool interface
+class Tool(ABC):
+    @abstractmethod
+    async def execute(self, params: Dict[str, Any], context: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Execute tool and return MCP-compliant content array"""
+        pass
+```
+
+### Context-Aware Routing
+- **Capability Matching**: Route based on required capabilities
+- **Semantic Similarity**: Use embeddings for intelligent routing
+- **Load Balancing**: Distribute requests across tool instances
+- **Cost Optimization**: Select tools based on resource usage
+- **Adaptive Strategy**: Learn from usage patterns
 
 ## Vector Store Design
 
@@ -199,18 +300,36 @@ logger.info(
 ### Docker Composition
 ```yaml
 services:
+  # Infrastructure
   weaviate:
     image: semitechnologies/weaviate:1.22.4
     ports:
       - "8080:8080"
+  
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
     
+  # API Servers
   signalcli-api:
     build: .
     ports:
       - "8000:8000"
     depends_on:
       - weaviate
+      - redis
     
+  signalcli-mcp:
+    build:
+      dockerfile: docker/Dockerfile.mcp
+    ports:
+      - "8001:8001"
+    depends_on:
+      - weaviate
+      - redis
+    
+  # CLI
   signalcli-cli:
     build: .
     command: ["python", "src/cli/main.py"]
@@ -240,6 +359,16 @@ WEAVIATE_PORT=8080
 API_HOST=0.0.0.0
 API_PORT=8000
 API_WORKERS=4
+
+# MCP Server
+MCP_HOST=0.0.0.0
+MCP_PORT=8001
+MCP_WORKERS=4
+MCP_CACHE_SIZE_MB=1024
+
+# Cache
+REDIS_URL=redis://localhost:6379
+CACHE_PROVIDER=redis
 ```
 
 ### Configuration Files
@@ -264,16 +393,46 @@ API_WORKERS=4
 - Memory profiling
 - Latency benchmarking
 
+## Scaling and Performance
+
+### Horizontal Scaling
+- **API Servers**: Multiple instances behind load balancer
+- **MCP Server**: WebSocket-aware load balancing
+- **Vector Store**: Weaviate cluster with sharding
+- **Cache**: Redis cluster for distributed caching
+
+### Performance Optimizations
+- **Connection Pooling**: Reuse database connections
+- **Request Batching**: Group similar requests
+- **Async Processing**: Non-blocking I/O throughout
+- **Resource Limits**: CPU/memory constraints per container
+
+## Security Architecture
+
+### Authentication & Authorization
+- **API Keys**: For REST API access
+- **MCP Sessions**: Initialized sessions for tool access
+- **Rate Limiting**: Token bucket algorithm
+- **RBAC**: Role-based access control for tools
+
+### Data Security
+- **Encryption**: TLS for all external communications
+- **Input Validation**: Schema validation on all inputs
+- **Audit Logging**: Complete operation history
+- **Secrets Management**: Environment variables and key vaults
+
 ## Future Enhancements
 
 ### Planned Features
-- Multi-model support (Mistral, CodeLlama)
-- Advanced RAG techniques (HyDE, CoT)
-- Web interface dashboard
-- Plugin system for custom processors
+- Multi-model support (Mistral, CodeLlama, GPT-4)
+- Advanced RAG techniques (HyDE, CoT, Multi-hop)
+- GraphQL API alongside REST
+- Plugin system for custom MCP tools
+- Federated MCP servers
 
 ### Optimization Roadmap
-- GPU inference acceleration
-- Model quantization (INT8/INT4)
-- Streaming response support
-- Distributed vector search
+- GPU inference acceleration with CUDA
+- Model quantization (INT8/INT4) support
+- Enhanced streaming with backpressure
+- Distributed vector search with Faiss
+- Edge deployment capabilities

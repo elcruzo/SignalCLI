@@ -14,6 +14,7 @@ from .models import QueryRequest, QueryResponse, HealthResponse
 from .dependencies import get_rag_engine, get_llm_engine, get_observability
 from ..utils.config import load_config
 from ..utils.logger import get_logger
+from .mcp_integration import MCPIntegration
 
 logger = get_logger(__name__)
 config = load_config()
@@ -29,13 +30,21 @@ async def lifespan(app: FastAPI):
 
     # Initialize services
     try:
+        # Initialize MCP integration
+        mcp_url = config.get("mcp", {}).get("server_url", "http://localhost:8001")
+        app_state["mcp"] = MCPIntegration(mcp_url)
+        await app_state["mcp"].initialize()
+        
         # This would initialize your RAG engine, LLM, etc.
         logger.info("✅ Services initialized successfully")
+        logger.info(f"✅ MCP integration established with {mcp_url}")
         yield
     except Exception as e:
         logger.error(f"❌ Failed to initialize services: {e}")
         raise
     finally:
+        if "mcp" in app_state:
+            await app_state["mcp"].close()
         logger.info("🔄 Shutting down SignalCLI API server")
 
 
@@ -70,6 +79,7 @@ async def health_check():
             "api": "healthy",
             "vector_store": "healthy",  # Would check actual status
             "llm_engine": "healthy",  # Would check actual status
+            "mcp_server": await app_state.get("mcp", {}).health_check() if "mcp" in app_state else "not_initialized",
         },
     )
 
@@ -180,6 +190,34 @@ async def list_schemas():
     """List available JSON schemas"""
     # This would return actual schema registry
     return {"schemas": ["qa_response", "list_response", "comparison_response"]}
+
+
+@app.get("/mcp/tools")
+async def list_mcp_tools():
+    """List available MCP tools"""
+    if "mcp" not in app_state:
+        raise HTTPException(status_code=503, detail="MCP integration not available")
+    
+    tools = await app_state["mcp"].list_tools()
+    return tools
+
+
+@app.post("/mcp/execute")
+async def execute_mcp_tool(
+    tool_name: str,
+    arguments: Dict[str, Any],
+    context: Optional[Dict[str, Any]] = None,
+):
+    """Execute an MCP tool through the API"""
+    if "mcp" not in app_state:
+        raise HTTPException(status_code=503, detail="MCP integration not available")
+    
+    try:
+        result = await app_state["mcp"].execute_tool(tool_name, arguments, context)
+        return result
+    except Exception as e:
+        logger.error(f"MCP tool execution failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 if __name__ == "__main__":
