@@ -1,0 +1,113 @@
+# SignalCLI specific .gitignore
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDEs and editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# SignalCLI specific
+logs/
+*.log
+cache/
+.cache/
+
+# Model files (too large for git)
+models/
+*.gguf
+*.bin
+*.safetensors
+*.pt
+*.pth
+
+# Vector store data
+data/vector_store/
+data/embeddings/
+data/indexes/
+
+# Configuration with secrets
+config/secrets.yaml
+config/api_keys.yaml
+.env.local
+.env.production
+
+# Docker volumes and data
+docker/data/
+volumes/
+
+# API responses and cache
+responses/
+api_cache/
+
+# Test artifacts
+test-results/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# Prometheus and monitoring data
+prometheus/data/
+grafana/data/
+
+# Weaviate data
+weaviate/
+
+# JSONformer cache
+jsonformer_cache/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Documentation build
+docs/_build/
+docs/build/
+
+# FastAPI static files
+static/uploads/

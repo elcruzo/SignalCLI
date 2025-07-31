@@ -1,0 +1,102 @@
+version: '3.8'
+
+services:
+  # Weaviate Vector Database
+  weaviate:
+    image: semitechnologies/weaviate:1.22.4
+    container_name: signalcli-weaviate
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      QUERY_DEFAULTS_LIMIT: 25
+      AUTHENTICATION_ANONYMOUS_ACCESS_ENABLED: 'true'
+      PERSISTENCE_DATA_PATH: '/var/lib/weaviate'
+      DEFAULT_VECTORIZER_MODULE: 'text2vec-transformers'
+      ENABLE_MODULES: 'text2vec-transformers'
+      TRANSFORMERS_INFERENCE_API: 'http://t2v-transformers:8080'
+    volumes:
+      - weaviate_data:/var/lib/weaviate
+    depends_on:
+      - t2v-transformers
+    networks:
+      - signalcli-network
+
+  # Text2Vec Transformers
+  t2v-transformers:
+    image: semitechnologies/transformers-inference:sentence-transformers-all-MiniLM-L6-v2
+    container_name: signalcli-transformers
+    restart: unless-stopped
+    environment:
+      ENABLE_CUDA: 0  # Set to 1 if GPU available
+    networks:
+      - signalcli-network
+
+  # SignalCLI API Server
+  signalcli-api:
+    build: .
+    container_name: signalcli-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      - WEAVIATE_HOST=weaviate
+      - WEAVIATE_PORT=8080
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - LOG_LEVEL=INFO
+    volumes:
+      - ./models:/app/models:ro
+      - ./config:/app/config:ro
+      - signalcli_logs:/app/logs
+    depends_on:
+      - weaviate
+    networks:
+      - signalcli-network
+    command: ["api"]
+
+  # Redis for caching (optional)
+  redis:
+    image: redis:7-alpine
+    container_name: signalcli-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - signalcli-network
+    command: redis-server --appendonly yes
+
+  # Prometheus for metrics (optional)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: signalcli-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    networks:
+      - signalcli-network
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--web.enable-lifecycle'
+
+volumes:
+  weaviate_data:
+    driver: local
+  redis_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  signalcli_logs:
+    driver: local
+
+networks:
+  signalcli-network:
+    driver: bridge

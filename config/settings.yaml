@@ -1,0 +1,131 @@
+# SignalCLI Configuration
+
+# API Server Settings
+api:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 4
+  reload: false
+  log_level: "info"
+
+# LLM Configuration
+llm:
+  model_path: "models/llama-3.1-8b-instruct.gguf"
+  model_type: "llamafile"  # Options: llamafile, openai, huggingface
+  max_tokens: 2048
+  temperature: 0.7
+  top_p: 0.9
+  top_k: 40
+  context_length: 4096
+  
+  # GPU settings
+  use_gpu: true
+  gpu_layers: 35  # Number of layers to offload to GPU
+  
+  # OpenAI API settings (if using OpenAI)
+  openai_api_key: null
+  openai_model: "gpt-3.5-turbo"
+
+# Vector Store Configuration
+vector_store:
+  provider: "weaviate"  # Options: weaviate, chroma, pinecone
+  host: "localhost"
+  port: 8080
+  collection_name: "signalcli_documents"
+  
+  # Embedding settings
+  embedding_model: "all-MiniLM-L6-v2"
+  chunk_size: 512
+  chunk_overlap: 50
+  max_chunks_per_doc: 100
+
+# RAG Configuration
+rag:
+  retrieval_method: "hybrid"  # Options: vector, keyword, hybrid
+  top_k: 5
+  similarity_threshold: 0.7
+  reranking: true
+  max_context_length: 2000
+
+# JSONformer Configuration
+jsonformer:
+  max_string_length: 500
+  max_array_length: 20
+  max_object_properties: 50
+  temperature: 0.3
+
+# Caching Configuration
+cache:
+  enabled: true
+  provider: "redis"  # Options: redis, memory, disk
+  host: "localhost"
+  port: 6379
+  ttl: 3600  # Cache TTL in seconds
+  max_size: 1000  # Max cache entries
+
+# Logging Configuration
+logging:
+  level: "INFO"
+  format: "json"  # Options: json, text
+  file: "logs/signalcli.log"
+  max_size: "100MB"
+  backup_count: 5
+  
+  # Structured logging fields
+  include_fields:
+    - query_id
+    - user_id
+    - latency_ms
+    - tokens_used
+    - model_name
+    - success
+
+# Observability Configuration
+observability:
+  metrics_enabled: true
+  tracing_enabled: false
+  
+  # Prometheus settings
+  prometheus:
+    port: 9090
+    path: "/metrics"
+  
+  # Custom metrics
+  custom_metrics:
+    - name: "query_duration_seconds"
+      type: "histogram"
+      description: "Query processing duration"
+    - name: "tokens_processed_total"
+      type: "counter"
+      description: "Total tokens processed"
+
+# Security Configuration
+security:
+  api_key_required: false
+  api_key_header: "X-API-Key"
+  rate_limiting:
+    enabled: true
+    requests_per_minute: 60
+    requests_per_hour: 1000
+  
+  # Input validation
+  max_query_length: 2048
+  blocked_patterns:
+    - "DROP TABLE"
+    - "<script"
+    - "rm -rf"
+
+# Development Settings
+development:
+  debug: false
+  reload: true
+  profiling: false
+  mock_llm: false  # Use mock responses for testing
+
+# Production Settings
+production:
+  workers: 4
+  timeout: 30
+  keep_alive: 2
+  max_requests: 1000
+  preload_app: true
