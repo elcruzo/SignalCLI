@@ -43,8 +43,11 @@ SignalCLI demonstrates backend maturity through JSON safety, observability, and 
 git clone <repository-url>
 cd SignalCLI
 
-# Install dependencies
+# Install core dependencies
 pip install -r requirements.txt
+
+# Optional: Install additional dependencies for Weaviate, GGUF support, etc.
+# pip install -r requirements-optional.txt
 
 # Start services (Weaviate + FastAPI)
 docker-compose up -d

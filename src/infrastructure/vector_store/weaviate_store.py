@@ -2,8 +2,21 @@
 
 import asyncio
 from typing import List, Dict, Any, Optional
-import weaviate
-from weaviate.exceptions import WeaviateException
+
+try:
+    import weaviate
+
+    # Try different import patterns for different weaviate versions
+    try:
+        from weaviate.exceptions import WeaviateException
+    except ImportError:
+        # Fallback for newer versions
+        WeaviateException = Exception
+    WEAVIATE_AVAILABLE = True
+except ImportError:
+    weaviate = None
+    WeaviateException = Exception
+    WEAVIATE_AVAILABLE = False
 
 from .base import BaseVectorStore
 from src.core.interfaces import Document, IEmbeddingModel
@@ -18,6 +31,10 @@ class WeaviateVectorStore(BaseVectorStore):
 
     def __init__(self, config: Dict[str, Any], embedding_model: IEmbeddingModel):
         super().__init__(config, embedding_model)
+        if not WEAVIATE_AVAILABLE:
+            raise ImportError(
+                "Weaviate is not installed. Please install with: pip install weaviate-client"
+            )
         self.host = config.get("host", "localhost")
         self.port = config.get("port", 8080)
         self.client: Optional[weaviate.Client] = None

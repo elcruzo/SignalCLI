@@ -14,8 +14,8 @@ jsonschema==4.21.1
 numpy==1.26.3
 scikit-learn==1.4.0
 
-# Vector Store
-weaviate-client==3.25.3
+# Vector Store (optional - comment out if not needed)
+# weaviate-client==3.25.3
 
 # Observability and Logging
 structlog==23.2.0
