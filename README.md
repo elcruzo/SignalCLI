@@ -46,7 +46,7 @@ SignalCLI demonstrates backend maturity through JSON safety, observability, and 
 
 ```bash
 # Clone the repository
-git clone <repository-url>
+git clone https://github.com/elcruzo/SignalCLI
 cd SignalCLI
 
 # Install core dependencies
