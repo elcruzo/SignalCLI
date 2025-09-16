@@ -1,0 +1,315 @@
+# SignalCLI Deployment Configuration
+
+base:
+  # General settings
+  log_level: INFO
+  run_tests: true
+  deploy_on_test_failure: false
+  rollback_on_failure: true
+
+  # API server configuration
+  api:
+    host: "0.0.0.0"
+    port: 8000
+    workers: 4
+    max_connections: 1000
+    timeout: 30
+
+  # MCP server configuration
+  mcp:
+    host: "0.0.0.0"
+    port: 8001
+    max_clients: 100
+    timeout: 60
+
+  # Vector store configuration
+  vector_store:
+    type: "weaviate"
+    host: "weaviate"
+    port: 8080
+    collection_name: "signalcli_documents"
+
+  # Cache configuration
+  cache:
+    type: "redis"
+    host: "redis"
+    port: 6379
+    db: 0
+    ttl: 3600
+
+  # LLM configuration
+  llm:
+    primary_engine: "llamacpp"
+    fallback_engine: "openai"
+    model_path: "/app/models/llama-2-7b-chat.Q4_K_M.gguf"
+    context_length: 4096
+    gpu_layers: 35
+    threads: 4
+
+  # RAG configuration
+  rag:
+    chunk_size: 500
+    chunk_overlap: 50
+    top_k: 5
+    similarity_threshold: 0.7
+    reranking: true
+
+  # Monitoring configuration
+  monitoring:
+    prometheus_port: 9090
+    grafana_port: 3000
+    metrics_enabled: true
+    alerting_enabled: true
+
+  # Security configuration
+  security:
+    api_key_required: true
+    rate_limiting: true
+    max_requests_per_minute: 60
+    cors_enabled: true
+
+# Development environment
+development:
+  log_level: DEBUG
+  run_tests: true
+  
+  api:
+    port: 8000
+    workers: 1
+    reload: true
+
+  mcp:
+    port: 8001
+
+  llm:
+    model_path: "/app/models/test-model.gguf"
+    context_length: 2048
+    gpu_layers: 0
+
+  security:
+    api_key_required: false
+    rate_limiting: false
+
+# Staging environment
+staging:
+  log_level: INFO
+  run_tests: true
+  
+  api:
+    port: 8000
+    workers: 2
+
+  mcp:
+    port: 8001
+
+  llm:
+    model_path: "/app/models/llama-2-7b-chat.Q4_K_M.gguf"
+    context_length: 4096
+    gpu_layers: 20
+
+  monitoring:
+    prometheus_port: 9090
+    grafana_port: 3000
+
+  security:
+    api_key_required: true
+    rate_limiting: true
+    max_requests_per_minute: 120
+
+# Production environment
+production:
+  log_level: WARNING
+  run_tests: false
+  deploy_on_test_failure: false
+  rollback_on_failure: true
+
+  api:
+    port: 8000
+    workers: 8
+    max_connections: 2000
+    timeout: 60
+
+  mcp:
+    port: 8001
+    max_clients: 200
+    timeout: 120
+
+  vector_store:
+    host: "weaviate-prod"
+    port: 8080
+
+  cache:
+    host: "redis-prod"
+    port: 6379
+    ttl: 7200
+
+  llm:
+    model_path: "/app/models/llama-2-13b-chat.Q4_K_M.gguf"
+    context_length: 4096
+    gpu_layers: 40
+    threads: 8
+
+  rag:
+    chunk_size: 750
+    chunk_overlap: 75
+    top_k: 10
+    similarity_threshold: 0.75
+
+  monitoring:
+    prometheus_port: 9090
+    grafana_port: 3000
+    metrics_enabled: true
+    alerting_enabled: true
+
+  security:
+    api_key_required: true
+    rate_limiting: true
+    max_requests_per_minute: 300
+    cors_enabled: true
+
+  # Backup configuration
+  backup:
+    enabled: true
+    retention_days: 30
+    s3_bucket: "signalcli-backups"
+    
+  # Auto-scaling (if using container orchestration)
+  scaling:
+    min_replicas: 2
+    max_replicas: 10
+    target_cpu: 70
+    target_memory: 80
+
+# High-availability production
+production-ha:
+  log_level: INFO
+  run_tests: false
+  
+  api:
+    port: 8000
+    workers: 16
+    max_connections: 5000
+    timeout: 90
+
+  mcp:
+    port: 8001
+    max_clients: 500
+    timeout: 180
+
+  vector_store:
+    type: "weaviate-cluster"
+    hosts: 
+      - "weaviate-1:8080"
+      - "weaviate-2:8080" 
+      - "weaviate-3:8080"
+    replication_factor: 3
+
+  cache:
+    type: "redis-cluster"
+    hosts:
+      - "redis-1:6379"
+      - "redis-2:6379"
+      - "redis-3:6379"
+
+  llm:
+    # Multiple models for load balancing
+    models:
+      - path: "/app/models/llama-2-13b-chat.Q4_K_M.gguf"
+        gpu_layers: 40
+        threads: 8
+      - path: "/app/models/llama-2-7b-chat.Q4_K_M.gguf"
+        gpu_layers: 35
+        threads: 4
+
+  monitoring:
+    prometheus_port: 9090
+    grafana_port: 3000
+    alertmanager_port: 9093
+    metrics_enabled: true
+    alerting_enabled: true
+    log_aggregation: true
+
+  security:
+    api_key_required: true
+    rate_limiting: true
+    max_requests_per_minute: 1000
+    ddos_protection: true
+    
+  backup:
+    enabled: true
+    retention_days: 90
+    s3_bucket: "signalcli-backups-prod"
+    cross_region_replication: true
+    
+  scaling:
+    min_replicas: 5
+    max_replicas: 50
+    target_cpu: 60
+    target_memory: 70
+    auto_scale: true
+
+# Docker-specific configuration
+docker:
+  # Image tags
+  images:
+    signalcli: "signalcli:latest"
+    weaviate: "semitechnologies/weaviate:1.21.0"
+    redis: "redis:7-alpine" 
+    prometheus: "prom/prometheus:latest"
+    grafana: "grafana/grafana:latest"
+
+  # Resource limits
+  resources:
+    signalcli:
+      memory: "4Gi"
+      cpu: "2"
+      memory_limit: "8Gi"
+      cpu_limit: "4"
+    
+    weaviate:
+      memory: "2Gi" 
+      cpu: "1"
+      memory_limit: "4Gi"
+      cpu_limit: "2"
+
+    redis:
+      memory: "512Mi"
+      cpu: "0.5"
+      memory_limit: "1Gi"
+      cpu_limit: "1"
+
+  # Health checks
+  health_checks:
+    signalcli:
+      test: "curl -f http://localhost:8000/health || exit 1"
+      interval: 30
+      timeout: 10
+      retries: 3
+      start_period: 60
+
+# Kubernetes deployment (for advanced users)
+kubernetes:
+  namespace: "signalcli"
+  
+  ingress:
+    enabled: true
+    host: "signalcli.example.com"
+    tls: true
+    cert_manager: true
+
+  persistence:
+    vector_store:
+      size: "50Gi"
+      storage_class: "fast-ssd"
+    
+    cache:
+      size: "10Gi"
+      storage_class: "fast-ssd"
+
+  secrets:
+    openai_api_key: "signalcli-openai-key"
+    
+  service_monitor:
+    enabled: true
+    labels:
+      app: "signalcli"
