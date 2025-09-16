@@ -49,14 +49,18 @@ class StreamingHandler:
         self.max_streams = max_streams
         self.total_streams_created = 0
 
-    def create_stream(self, stream_id: str, tool: Tool, request: Dict[str, Any]) -> StreamInfo:
+    def create_stream(
+        self, stream_id: str, tool: Tool, request: Dict[str, Any]
+    ) -> StreamInfo:
         """Create a new stream."""
         if len(self._streams) >= self.max_streams:
             # Clean up old completed streams
             self._cleanup_old_streams()
 
         if len(self._streams) >= self.max_streams:
-            raise RuntimeError(f"Maximum number of streams ({self.max_streams}) reached")
+            raise RuntimeError(
+                f"Maximum number of streams ({self.max_streams}) reached"
+            )
 
         stream_info = StreamInfo(id=stream_id, tool=tool, request=request)
         self._streams[stream_id] = stream_info
@@ -81,7 +85,9 @@ class StreamingHandler:
             request = stream_info.request
 
             # Execute tool with streaming
-            async for chunk in tool.stream_execute(request["params"], request.get("context")):
+            async for chunk in tool.stream_execute(
+                request["params"], request.get("context")
+            ):
                 await queue.put(chunk)
                 stream_info.chunks_sent += 1
 
@@ -129,7 +135,9 @@ class StreamingHandler:
     def active_stream_count(self) -> int:
         """Get count of active streams."""
         return sum(
-            1 for stream in self._streams.values() if stream.status == StreamStatus.ACTIVE
+            1
+            for stream in self._streams.values()
+            if stream.status == StreamStatus.ACTIVE
         )
 
     def _cleanup_old_streams(self, age_minutes: int = 15) -> None:
@@ -138,7 +146,11 @@ class StreamingHandler:
         to_remove = []
 
         for stream_id, stream_info in self._streams.items():
-            if stream_info.status in [StreamStatus.COMPLETED, StreamStatus.ERROR, StreamStatus.CANCELLED]:
+            if stream_info.status in [
+                StreamStatus.COMPLETED,
+                StreamStatus.ERROR,
+                StreamStatus.CANCELLED,
+            ]:
                 age = (cutoff_time - stream_info.created_at).total_seconds() / 60
                 if age > age_minutes:
                     to_remove.append(stream_id)
@@ -335,7 +347,9 @@ class BatchHandler:
 
         batch = self._batches[batch_id]
         if len(batch) >= self.max_batch_size:
-            raise ValueError(f"Batch {batch_id} is full (max size: {self.max_batch_size})")
+            raise ValueError(
+                f"Batch {batch_id} is full (max size: {self.max_batch_size})"
+            )
 
         batch.append(request)
 

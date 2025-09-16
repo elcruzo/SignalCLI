@@ -58,10 +58,12 @@ class DocumentLoader:
     def _get_loader_type(self, file_path: Path, mime_type: Optional[str]) -> str:
         """Determine appropriate loader type."""
         suffix = file_path.suffix.lower()
-        
+
         if suffix == ".pdf" or mime_type == "application/pdf":
             return "pdf"
-        elif suffix in [".docx", ".doc"] or mime_type in ["application/vnd.openxmlformats-officedocument.wordprocessingml.document"]:
+        elif suffix in [".docx", ".doc"] or mime_type in [
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        ]:
             return "docx"
         else:
             return "text"
@@ -75,7 +77,7 @@ class TextLoader:
         try:
             # Read file with encoding detection
             content = await self._read_with_encoding(file_path)
-            
+
             metadata = {
                 "file_path": str(file_path),
                 "file_size": file_path.stat().st_size,
@@ -87,7 +89,7 @@ class TextLoader:
                 content=content,
                 source=str(file_path),
                 chunk_id=f"{file_path.name}#0",
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
@@ -97,24 +99,24 @@ class TextLoader:
     async def _read_with_encoding(self, file_path: Path) -> str:
         """Read file with automatic encoding detection."""
         # Try to detect encoding
-        with open(file_path, 'rb') as f:
+        with open(file_path, "rb") as f:
             raw_data = f.read()
-        
+
         detected = chardet.detect(raw_data)
-        encoding = detected.get('encoding', 'utf-8')
-        
+        encoding = detected.get("encoding", "utf-8")
+
         try:
             return raw_data.decode(encoding)
         except UnicodeDecodeError:
             # Fallback encodings
-            for fallback in ['utf-8', 'latin1', 'cp1252']:
+            for fallback in ["utf-8", "latin1", "cp1252"]:
                 try:
                     return raw_data.decode(fallback)
                 except UnicodeDecodeError:
                     continue
-            
+
             # Last resort - ignore errors
-            return raw_data.decode('utf-8', errors='ignore')
+            return raw_data.decode("utf-8", errors="ignore")
 
 
 class WebLoader:
@@ -126,15 +128,17 @@ class WebLoader:
     async def load(self, url: str) -> Optional[Document]:
         """Load content from URL."""
         try:
-            async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=self.timeout)) as session:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=self.timeout)
+            ) as session:
                 async with session.get(url) as response:
                     if response.status != 200:
                         logger.error(f"HTTP {response.status} for {url}")
                         return None
 
-                    content_type = response.headers.get('content-type', '').lower()
-                    
-                    if 'text/html' in content_type:
+                    content_type = response.headers.get("content-type", "").lower()
+
+                    if "text/html" in content_type:
                         content = await self._extract_html_text(await response.text())
                     else:
                         content = await response.text()
@@ -150,7 +154,7 @@ class WebLoader:
                         content=content,
                         source=url,
                         chunk_id=f"web#{hash(url)}",
-                        metadata=metadata
+                        metadata=metadata,
                     )
 
         except Exception as e:
@@ -161,21 +165,21 @@ class WebLoader:
         """Extract text from HTML content."""
         try:
             from bs4 import BeautifulSoup
-            
-            soup = BeautifulSoup(html, 'html.parser')
-            
+
+            soup = BeautifulSoup(html, "html.parser")
+
             # Remove script and style elements
             for element in soup(["script", "style", "nav", "header", "footer"]):
                 element.decompose()
-            
+
             # Get text
             text = soup.get_text()
-            
+
             # Clean up whitespace
             lines = (line.strip() for line in text.splitlines())
             chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = '\n'.join(chunk for chunk in chunks if chunk)
-            
+            text = "\n".join(chunk for chunk in chunks if chunk)
+
             return text
 
         except ImportError:
@@ -200,7 +204,7 @@ class PDFLoader:
                 return None
 
             content = await self._extract_pdf_text(file_path)
-            
+
             metadata = {
                 "file_path": str(file_path),
                 "file_size": file_path.stat().st_size,
@@ -212,7 +216,7 @@ class PDFLoader:
                 content=content,
                 source=str(file_path),
                 chunk_id=f"{file_path.name}#0",
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
@@ -222,12 +226,12 @@ class PDFLoader:
     async def _extract_pdf_text(self, file_path: Path) -> str:
         """Extract text from PDF."""
         import PyPDF2
-        
+
         text_parts = []
-        
-        with open(file_path, 'rb') as file:
+
+        with open(file_path, "rb") as file:
             pdf_reader = PyPDF2.PdfReader(file)
-            
+
             for page_num, page in enumerate(pdf_reader.pages):
                 try:
                     page_text = page.extract_text()
@@ -235,7 +239,7 @@ class PDFLoader:
                         text_parts.append(f"[Page {page_num + 1}]\n{page_text}")
                 except Exception as e:
                     logger.warning(f"Error extracting page {page_num + 1}: {e}")
-        
+
         return "\n\n".join(text_parts)
 
 
@@ -252,7 +256,7 @@ class DocxLoader:
                 return None
 
             content = await self._extract_docx_text(file_path)
-            
+
             metadata = {
                 "file_path": str(file_path),
                 "file_size": file_path.stat().st_size,
@@ -264,7 +268,7 @@ class DocxLoader:
                 content=content,
                 source=str(file_path),
                 chunk_id=f"{file_path.name}#0",
-                metadata=metadata
+                metadata=metadata,
             )
 
         except Exception as e:
@@ -274,12 +278,12 @@ class DocxLoader:
     async def _extract_docx_text(self, file_path: Path) -> str:
         """Extract text from DOCX."""
         import python_docx
-        
+
         doc = python_docx.Document(file_path)
         text_parts = []
-        
+
         for paragraph in doc.paragraphs:
             if paragraph.text.strip():
                 text_parts.append(paragraph.text)
-        
+
         return "\n".join(text_parts)

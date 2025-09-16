@@ -196,9 +196,9 @@ Please provide a comprehensive answer based on your knowledge."""
     def _document_to_source(self, doc: Document) -> Dict[str, Any]:
         """Convert document to source info."""
         return {
-            "content": doc.content[:200] + "..."
-            if len(doc.content) > 200
-            else doc.content,
+            "content": (
+                doc.content[:200] + "..." if len(doc.content) > 200 else doc.content
+            ),
             "source": doc.source,
             "chunk_id": doc.chunk_id,
             "similarity_score": doc.similarity_score or 0.0,

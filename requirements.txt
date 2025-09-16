@@ -8,7 +8,7 @@ httpx==0.25.2
 
 # LLM and AI
 transformers==4.36.0
-torch==2.1.0
+torch>=2.1.0
 sentence-transformers==2.2.2
 jsonschema==4.21.1
 numpy==1.26.3

@@ -55,17 +55,51 @@ class ContextAwareRouter:
         """Initialize routing rules and patterns."""
         self.capability_keywords = {
             ToolCapability.QUERY: ["search", "find", "query", "lookup", "retrieve"],
-            ToolCapability.SUMMARIZE: ["summarize", "summary", "brief", "overview", "tldr"],
-            ToolCapability.GENERATE: ["create", "generate", "write", "compose", "draft"],
-            ToolCapability.ANALYZE: ["analyze", "examine", "investigate", "study", "evaluate"],
-            ToolCapability.TRANSFORM: ["convert", "transform", "translate", "format", "modify"],
+            ToolCapability.SUMMARIZE: [
+                "summarize",
+                "summary",
+                "brief",
+                "overview",
+                "tldr",
+            ],
+            ToolCapability.GENERATE: [
+                "create",
+                "generate",
+                "write",
+                "compose",
+                "draft",
+            ],
+            ToolCapability.ANALYZE: [
+                "analyze",
+                "examine",
+                "investigate",
+                "study",
+                "evaluate",
+            ],
+            ToolCapability.TRANSFORM: [
+                "convert",
+                "transform",
+                "translate",
+                "format",
+                "modify",
+            ],
             ToolCapability.VALIDATE: ["validate", "check", "verify", "confirm", "test"],
             ToolCapability.STORE: ["save", "store", "index", "add", "insert"],
             ToolCapability.RETRIEVE: ["get", "fetch", "retrieve", "load", "read"],
         }
 
         self.intent_patterns = {
-            "question": ["what", "when", "where", "who", "why", "how", "is", "are", "can"],
+            "question": [
+                "what",
+                "when",
+                "where",
+                "who",
+                "why",
+                "how",
+                "is",
+                "are",
+                "can",
+            ],
             "command": ["show", "list", "display", "get", "find", "create", "delete"],
             "analysis": ["analyze", "compare", "evaluate", "assess", "investigate"],
         }
@@ -140,7 +174,9 @@ class ContextAwareRouter:
     async def _route_by_capability(self, context: RoutingContext) -> str:
         """Route based on capability matching."""
         # Find tools with required capabilities
-        matching_tools = self.tool_registry.find_by_capabilities(context.required_capabilities)
+        matching_tools = self.tool_registry.find_by_capabilities(
+            context.required_capabilities
+        )
 
         if not matching_tools:
             # Fallback to tools with any of the capabilities
@@ -190,7 +226,11 @@ class ContextAwareRouter:
         similarities.sort(key=lambda x: x[1], reverse=True)
 
         # Filter and select
-        filtered_tools = [tool for tool, _ in similarities if tool in self._apply_filters(tools, context)]
+        filtered_tools = [
+            tool
+            for tool, _ in similarities
+            if tool in self._apply_filters(tools, context)
+        ]
 
         if filtered_tools:
             return filtered_tools[0].name
@@ -237,11 +277,17 @@ class ContextAwareRouter:
         tool_scores.sort(key=lambda x: x[1], reverse=True)
 
         # Filter and select
-        filtered_tools = [(tool, score) for tool, score in tool_scores if tool in self._apply_filters(tools, context)]
+        filtered_tools = [
+            (tool, score)
+            for tool, score in tool_scores
+            if tool in self._apply_filters(tools, context)
+        ]
 
         if filtered_tools:
             selected_tool = filtered_tools[0][0]
-            logger.info(f"Selected tool '{selected_tool.name}' with score {filtered_tools[0][1]:.3f}")
+            logger.info(
+                f"Selected tool '{selected_tool.name}' with score {filtered_tools[0][1]:.3f}"
+            )
             return selected_tool.name
 
         # Fallback
@@ -249,7 +295,9 @@ class ContextAwareRouter:
 
     async def _route_load_balanced(self, context: RoutingContext) -> str:
         """Route with load balancing."""
-        matching_tools = self.tool_registry.find_by_capabilities(context.required_capabilities)
+        matching_tools = self.tool_registry.find_by_capabilities(
+            context.required_capabilities
+        )
         matching_tools = self._apply_filters(matching_tools, context)
 
         if not matching_tools:
@@ -271,7 +319,9 @@ class ContextAwareRouter:
 
     async def _route_cost_optimized(self, context: RoutingContext) -> str:
         """Route based on cost optimization."""
-        matching_tools = self.tool_registry.find_by_capabilities(context.required_capabilities)
+        matching_tools = self.tool_registry.find_by_capabilities(
+            context.required_capabilities
+        )
         matching_tools = self._apply_filters(matching_tools, context)
 
         if not matching_tools:
@@ -309,7 +359,8 @@ class ContextAwareRouter:
             filtered = [
                 t
                 for t in filtered
-                if not t.metadata.cost_estimate or t.metadata.cost_estimate <= context.max_cost
+                if not t.metadata.cost_estimate
+                or t.metadata.cost_estimate <= context.max_cost
             ]
 
         return filtered
@@ -354,7 +405,9 @@ class ContextAwareRouter:
 
         return matches / total_keywords if total_keywords > 0 else 0.0
 
-    async def _calculate_similarity_score(self, tool: Tool, context: RoutingContext) -> float:
+    async def _calculate_similarity_score(
+        self, tool: Tool, context: RoutingContext
+    ) -> float:
         """Calculate semantic similarity score."""
         if not self.embedding_model:
             return 0.5
@@ -399,7 +452,9 @@ class ContextAwareRouter:
         # Assuming costs range from 0-10
         return max(0, 1 - (tool.metadata.cost_estimate / 10.0))
 
-    def _adjust_for_preferences(self, score: float, tool: Tool, context: RoutingContext) -> float:
+    def _adjust_for_preferences(
+        self, score: float, tool: Tool, context: RoutingContext
+    ) -> float:
         """Adjust score based on urgency and quality preferences."""
         adjusted_score = score
 

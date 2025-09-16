@@ -34,7 +34,7 @@ async def lifespan(app: FastAPI):
         mcp_url = config.get("mcp", {}).get("server_url", "http://localhost:8001")
         app_state["mcp"] = MCPIntegration(mcp_url)
         await app_state["mcp"].initialize()
-        
+
         # This would initialize your RAG engine, LLM, etc.
         logger.info("✅ Services initialized successfully")
         logger.info(f"✅ MCP integration established with {mcp_url}")
@@ -79,7 +79,11 @@ async def health_check():
             "api": "healthy",
             "vector_store": "healthy",  # Would check actual status
             "llm_engine": "healthy",  # Would check actual status
-            "mcp_server": await app_state.get("mcp", {}).health_check() if "mcp" in app_state else "not_initialized",
+            "mcp_server": (
+                await app_state.get("mcp", {}).health_check()
+                if "mcp" in app_state
+                else "not_initialized"
+            ),
         },
     )
 
@@ -197,7 +201,7 @@ async def list_mcp_tools():
     """List available MCP tools"""
     if "mcp" not in app_state:
         raise HTTPException(status_code=503, detail="MCP integration not available")
-    
+
     tools = await app_state["mcp"].list_tools()
     return tools
 
@@ -211,7 +215,7 @@ async def execute_mcp_tool(
     """Execute an MCP tool through the API"""
     if "mcp" not in app_state:
         raise HTTPException(status_code=503, detail="MCP integration not available")
-    
+
     try:
         result = await app_state["mcp"].execute_tool(tool_name, arguments, context)
         return result

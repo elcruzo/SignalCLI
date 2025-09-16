@@ -38,7 +38,7 @@ class OpenAIEngine(BaseLLMEngine):
             # Test the connection
             models = await self.client.models.list()
             available_models = [model.id for model in models.data]
-            
+
             if self.model_name not in available_models:
                 logger.warning(
                     f"Model {self.model_name} not found. Available: {available_models[:5]}"
@@ -90,7 +90,7 @@ class OpenAIEngine(BaseLLMEngine):
             # Extract response data
             choice = response.choices[0]
             generated_text = choice.message.content or ""
-            
+
             # Get token usage
             usage = response.usage
             total_tokens = usage.total_tokens if usage else 0
@@ -155,7 +155,9 @@ class OpenAIEngine(BaseLLMEngine):
             }
 
             # Stream the response
-            async for chunk in await self.client.chat.completions.create(**request_params):
+            async for chunk in await self.client.chat.completions.create(
+                **request_params
+            ):
                 if chunk.choices and chunk.choices[0].delta.content:
                     yield chunk.choices[0].delta.content
 
@@ -163,17 +165,16 @@ class OpenAIEngine(BaseLLMEngine):
             logger.error(f"OpenAI streaming error: {e}")
             raise LLMError(f"Streaming failed: {e}")
 
-    async def get_embeddings(self, texts: list[str], model: str = "text-embedding-ada-002") -> list[list[float]]:
+    async def get_embeddings(
+        self, texts: list[str], model: str = "text-embedding-ada-002"
+    ) -> list[list[float]]:
         """Get embeddings for texts."""
         if not self.client:
             raise LLMError("OpenAI client not initialized")
 
         try:
-            response = await self.client.embeddings.create(
-                input=texts,
-                model=model
-            )
-            
+            response = await self.client.embeddings.create(input=texts, model=model)
+
             return [embedding.embedding for embedding in response.data]
 
         except Exception as e:
@@ -191,7 +192,7 @@ class OpenAIEngine(BaseLLMEngine):
         """Check if engine supports streaming."""
         return True
 
-    @property 
+    @property
     def supports_json_mode(self) -> bool:
         """Check if engine supports JSON mode."""
         return self.model_name in ["gpt-4", "gpt-4-turbo", "gpt-3.5-turbo"]

@@ -1,13 +1,25 @@
 """Metrics collection for observability."""
 
 import time
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from collections import defaultdict
 from datetime import datetime
 
 from src.utils.logger import get_logger
 
 logger = get_logger(__name__)
+
+# Global metrics registry instance
+_metrics_registry = None
+
+
+def get_metrics_registry() -> "MetricsCollector":
+    """Get or create the global metrics registry."""
+    global _metrics_registry
+    if _metrics_registry is None:
+        # Default configuration for metrics
+        _metrics_registry = MetricsCollector({"metrics_enabled": True})
+    return _metrics_registry
 
 
 class MetricsCollector:
@@ -88,6 +100,38 @@ class MetricsCollector:
 
         label_str = ",".join(f"{k}={v}" for k, v in sorted(labels.items()))
         return f"{name}{{{label_str}}}"
+
+    def counter(self, name: str, description: str, labels: List[str]):
+        """Create a counter metric (Prometheus-style interface)."""
+        class Counter:
+            def __init__(self, collector, name):
+                self.collector = collector
+                self.name = name
+                
+            def labels(self, **kwargs):
+                label_dict = kwargs
+                return self
+                
+            def inc(self, amount=1):
+                self.collector.increment_counter(self.name, amount)
+                
+        return Counter(self, name)
+    
+    def histogram(self, name: str, description: str, labels: List[str]):
+        """Create a histogram metric (Prometheus-style interface)."""
+        class Histogram:
+            def __init__(self, collector, name):
+                self.collector = collector
+                self.name = name
+                
+            def labels(self, **kwargs):
+                label_dict = kwargs
+                return self
+                
+            def observe(self, value):
+                self.collector.record_histogram(self.name, value)
+                
+        return Histogram(self, name)
 
     def get_metrics(self) -> Dict[str, Any]:
         """Get all metrics in Prometheus-compatible format."""

@@ -10,14 +10,27 @@ from fastapi import FastAPI, WebSocket, Request
 from fastapi.responses import JSONResponse
 
 from .protocol import (
-    MCPRequest, MCPResponse, MCPNotification, MCPMethod, ErrorCode,
-    MCPInitializeParams, MCPInitializeResult, MCPServerCapabilities,
-    MCPToolCall, MCPToolResult, MCPToolInfo, MCPContent,
-    create_error_response, create_success_response, validate_mcp_request,
-    format_tool_for_mcp, format_tool_result, MCP_VERSION
+    MCPRequest,
+    MCPResponse,
+    MCPNotification,
+    MCPMethod,
+    ErrorCode,
+    MCPInitializeParams,
+    MCPInitializeResult,
+    MCPServerCapabilities,
+    MCPToolCall,
+    MCPToolResult,
+    MCPToolInfo,
+    MCPContent,
+    create_error_response,
+    create_success_response,
+    validate_mcp_request,
+    format_tool_for_mcp,
+    format_tool_result,
+    MCP_VERSION,
 )
 from .tools import ToolRegistry, Tool
-from .router import ContextAwareRouter  
+from .router import ContextAwareRouter
 from .handlers import StreamingHandler
 from .permissions import PermissionManager
 from .cache import MCPCache
@@ -43,17 +56,17 @@ class MCPServer:
         self.router = router
         self.permission_manager = permission_manager
         self.cache = cache
-        
+
         # Session management
         self._sessions: Dict[str, Dict[str, Any]] = {}
-        
+
         # Server info
         self.server_info = {
             "name": "SignalCLI-MCP",
             "version": "1.0.0",
-            "vendor": "SignalCLI"
+            "vendor": "SignalCLI",
         }
-        
+
         # Register endpoints
         self._register_endpoints()
 
@@ -62,7 +75,7 @@ class MCPServer:
         # Main MCP endpoint
         self.app.post("/")(self.handle_mcp_request)
         self.app.websocket("/")(self.handle_mcp_websocket)
-        
+
         # Health check (not part of MCP spec)
         self.app.get("/health")(self.health_check)
 
@@ -71,49 +84,41 @@ class MCPServer:
         try:
             # Parse request body
             data = await request.json()
-            
+
             # Validate request format
             validation_error = validate_mcp_request(data)
             if validation_error:
                 return JSONResponse(
                     create_error_response(
-                        data.get("id"),
-                        ErrorCode.INVALID_REQUEST,
-                        validation_error
+                        data.get("id"), ErrorCode.INVALID_REQUEST, validation_error
                     ).dict()
                 )
-            
+
             # Parse into MCPRequest
             try:
                 mcp_request = MCPRequest(**data)
             except Exception as e:
                 return JSONResponse(
                     create_error_response(
-                        data.get("id"),
-                        ErrorCode.INVALID_REQUEST,
-                        str(e)
+                        data.get("id"), ErrorCode.INVALID_REQUEST, str(e)
                     ).dict()
                 )
-            
+
             # Route to appropriate handler
             response = await self._route_request(mcp_request)
             return JSONResponse(response.dict(exclude_none=True))
-            
+
         except json.JSONDecodeError:
             return JSONResponse(
                 create_error_response(
-                    None,
-                    ErrorCode.PARSE_ERROR,
-                    "Invalid JSON"
+                    None, ErrorCode.PARSE_ERROR, "Invalid JSON"
                 ).dict()
             )
         except Exception as e:
             logger.error(f"Unexpected error: {e}")
             return JSONResponse(
                 create_error_response(
-                    None,
-                    ErrorCode.INTERNAL_ERROR,
-                    "Internal server error"
+                    None, ErrorCode.INTERNAL_ERROR, "Internal server error"
                 ).dict()
             )
 
@@ -124,42 +129,38 @@ class MCPServer:
         self._sessions[session_id] = {
             "websocket": websocket,
             "initialized": False,
-            "created_at": datetime.utcnow()
+            "created_at": datetime.utcnow(),
         }
-        
+
         try:
             while True:
                 # Receive message
                 data = await websocket.receive_json()
-                
+
                 # Validate and parse request
                 validation_error = validate_mcp_request(data)
                 if validation_error:
                     await websocket.send_json(
                         create_error_response(
-                            data.get("id"),
-                            ErrorCode.INVALID_REQUEST,
-                            validation_error
+                            data.get("id"), ErrorCode.INVALID_REQUEST, validation_error
                         ).dict()
                     )
                     continue
-                
+
                 try:
                     mcp_request = MCPRequest(**data)
                 except Exception as e:
                     await websocket.send_json(
                         create_error_response(
-                            data.get("id"),
-                            ErrorCode.INVALID_REQUEST,
-                            str(e)
+                            data.get("id"), ErrorCode.INVALID_REQUEST, str(e)
                         ).dict()
                     )
                     continue
-                
+
                 # Handle request
                 response = await self._route_request(mcp_request, session_id)
                 await websocket.send_json(response.dict(exclude_none=True))
-                
+
         except Exception as e:
             logger.error(f"WebSocket error: {e}")
         finally:
@@ -179,9 +180,9 @@ class MCPServer:
                     return create_error_response(
                         request.id,
                         ErrorCode.INVALID_REQUEST,
-                        "Session not initialized. Call initialize first."
+                        "Session not initialized. Call initialize first.",
                     )
-            
+
             # Route based on method
             if request.method == MCPMethod.INITIALIZE:
                 return await self._handle_initialize(request, session_id)
@@ -193,16 +194,12 @@ class MCPServer:
                 return create_error_response(
                     request.id,
                     ErrorCode.METHOD_NOT_FOUND,
-                    f"Method '{request.method}' not found"
+                    f"Method '{request.method}' not found",
                 )
-                
+
         except Exception as e:
             logger.error(f"Error handling request: {e}")
-            return create_error_response(
-                request.id,
-                ErrorCode.INTERNAL_ERROR,
-                str(e)
-            )
+            return create_error_response(request.id, ErrorCode.INTERNAL_ERROR, str(e))
 
     async def _handle_initialize(
         self, request: MCPRequest, session_id: Optional[str] = None
@@ -210,64 +207,56 @@ class MCPServer:
         """Handle initialize request."""
         try:
             # Parse params
-            params = MCPInitializeParams(**request.params) if request.params else MCPInitializeParams()
-            
+            params = (
+                MCPInitializeParams(**request.params)
+                if request.params
+                else MCPInitializeParams()
+            )
+
             # Check protocol version
             if params.protocolVersion != MCP_VERSION:
-                logger.warning(f"Client requested version {params.protocolVersion}, server supports {MCP_VERSION}")
-            
+                logger.warning(
+                    f"Client requested version {params.protocolVersion}, server supports {MCP_VERSION}"
+                )
+
             # Update session
             if session_id:
                 self._sessions[session_id]["initialized"] = True
                 self._sessions[session_id]["client_info"] = params.clientInfo
                 self._sessions[session_id]["capabilities"] = params.capabilities
-            
+
             # Build server capabilities
             capabilities = MCPServerCapabilities(
                 tools={} if self.tool_registry else None,
                 prompts=None,  # Not implemented yet
-                resources=None,  # Not implemented yet  
-                logging={}
+                resources=None,  # Not implemented yet
+                logging={},
             )
-            
+
             result = MCPInitializeResult(
                 protocolVersion=MCP_VERSION,
                 capabilities=capabilities,
-                serverInfo=self.server_info
+                serverInfo=self.server_info,
             )
-            
+
             return create_success_response(request.id, result.dict())
-            
+
         except Exception as e:
-            return create_error_response(
-                request.id,
-                ErrorCode.INVALID_PARAMS,
-                str(e)
-            )
+            return create_error_response(request.id, ErrorCode.INVALID_PARAMS, str(e))
 
     async def _handle_tools_list(self, request: MCPRequest) -> MCPResponse:
         """Handle tools/list request."""
         try:
             # Get all tools
             tools = self.tool_registry.list_tools()
-            
+
             # Convert to MCP format
-            tool_infos = [
-                format_tool_for_mcp(tool).dict()
-                for tool in tools
-            ]
-            
-            return create_success_response(
-                request.id,
-                {"tools": tool_infos}
-            )
-            
+            tool_infos = [format_tool_for_mcp(tool).dict() for tool in tools]
+
+            return create_success_response(request.id, {"tools": tool_infos})
+
         except Exception as e:
-            return create_error_response(
-                request.id,
-                ErrorCode.INTERNAL_ERROR,
-                str(e)
-            )
+            return create_error_response(request.id, ErrorCode.INTERNAL_ERROR, str(e))
 
     async def _handle_tools_call(self, request: MCPRequest) -> MCPResponse:
         """Handle tools/call request."""
@@ -275,65 +264,56 @@ class MCPServer:
             # Parse tool call
             if not request.params:
                 return create_error_response(
-                    request.id,
-                    ErrorCode.INVALID_PARAMS,
-                    "Missing params"
+                    request.id, ErrorCode.INVALID_PARAMS, "Missing params"
                 )
-            
+
             tool_call = MCPToolCall(**request.params)
-            
+
             # Get tool
             tool = self.tool_registry.get_tool(tool_call.name)
             if not tool:
                 return create_error_response(
                     request.id,
                     ErrorCode.TOOL_NOT_FOUND,
-                    f"Tool '{tool_call.name}' not found"
+                    f"Tool '{tool_call.name}' not found",
                 )
-            
+
             # Check cache if available
             cache_key = None
             if self.cache:
-                cache_key = self.cache.generate_key({
-                    "tool": tool_call.name,
-                    "arguments": tool_call.arguments
-                })
+                cache_key = self.cache.generate_key(
+                    {"tool": tool_call.name, "arguments": tool_call.arguments}
+                )
                 cached_result = await self.cache.get(cache_key)
                 if cached_result:
                     logger.info(f"Cache hit for tool {tool_call.name}")
                     return create_success_response(request.id, cached_result)
-            
+
             # Execute tool
             try:
                 result = await tool.execute(
-                    tool_call.arguments or {},
-                    context={"mcp_request_id": request.id}
+                    tool_call.arguments or {}, context={"mcp_request_id": request.id}
                 )
-                
+
                 # Format result
                 tool_result = format_tool_result(result)
                 response_data = tool_result.dict()
-                
+
                 # Cache result
                 if self.cache and cache_key:
                     await self.cache.set(cache_key, response_data)
-                
+
                 return create_success_response(request.id, response_data)
-                
+
             except Exception as e:
                 logger.error(f"Tool execution error: {e}")
                 error_result = format_tool_result(
-                    f"Tool execution failed: {str(e)}",
-                    is_error=True
+                    f"Tool execution failed: {str(e)}", is_error=True
                 )
                 return create_success_response(request.id, error_result.dict())
-                
+
         except Exception as e:
-            return create_error_response(
-                request.id,
-                ErrorCode.INTERNAL_ERROR,
-                str(e)
-            )
+            return create_error_response(request.id, ErrorCode.INTERNAL_ERROR, str(e))
 
     async def send_notification(
         self, session_id: str, method: str, params: Optional[Dict[str, Any]] = None
@@ -342,12 +322,9 @@ class MCPServer:
         session = self._sessions.get(session_id)
         if not session or "websocket" not in session:
             return
-        
-        notification = MCPNotification(
-            method=method,
-            params=params
-        )
-        
+
+        notification = MCPNotification(method=method, params=params)
+
         try:
             await session["websocket"].send_json(notification.dict())
         except Exception as e:
@@ -357,11 +334,8 @@ class MCPServer:
         self, method: str, params: Optional[Dict[str, Any]] = None
     ):
         """Broadcast notification to all sessions."""
-        notification = MCPNotification(
-            method=method,
-            params=params
-        )
-        
+        notification = MCPNotification(method=method, params=params)
+
         for session_id, session in self._sessions.items():
             if "websocket" in session:
                 try:
@@ -377,7 +351,7 @@ class MCPServer:
             "version": self.server_info["version"],
             "protocol_version": MCP_VERSION,
             "tools_count": len(self.tool_registry.list_tools()),
-            "active_sessions": len(self._sessions)
+            "active_sessions": len(self._sessions),
         }
 
 

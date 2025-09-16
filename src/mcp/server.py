@@ -11,11 +11,24 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from pydantic import BaseModel, Field, ValidationError
 
 from .protocol import (
-    MCPRequest, MCPResponse, MCPNotification, MCPMethod, ErrorCode,
-    MCPInitializeParams, MCPInitializeResult, MCPServerCapabilities,
-    MCPToolCall, MCPToolResult, MCPToolInfo, MCPContent,
-    create_error_response, create_success_response, validate_mcp_request,
-    format_tool_for_mcp, format_tool_result, MCP_VERSION
+    MCPRequest,
+    MCPResponse,
+    MCPNotification,
+    MCPMethod,
+    ErrorCode,
+    MCPInitializeParams,
+    MCPInitializeResult,
+    MCPServerCapabilities,
+    MCPToolCall,
+    MCPToolResult,
+    MCPToolInfo,
+    MCPContent,
+    create_error_response,
+    create_success_response,
+    validate_mcp_request,
+    format_tool_for_mcp,
+    format_tool_result,
+    MCP_VERSION,
 )
 from .tools import ToolRegistry, Tool
 from .router import ContextAwareRouter
@@ -32,6 +45,7 @@ metrics = get_metrics_registry()
 # Session management
 class MCPSession:
     """MCP session state."""
+
     def __init__(self, session_id: str):
         self.session_id = session_id
         self.initialized = False
@@ -77,7 +91,7 @@ class SignalCLIMCPServer:
         # Main MCP endpoint - handles all JSON-RPC requests
         self.app.post("/mcp")(self.handle_mcp_request)
         self.app.websocket("/mcp")(self.handle_mcp_websocket)
-        
+
         # Legacy/convenience endpoints (not part of MCP spec)
         self.app.get("/health")(self.health_check)
         self.app.get("/metrics")(self.get_metrics)
@@ -110,7 +124,9 @@ class SignalCLIMCPServer:
             "server": "SignalCLI-MCP",
         }
 
-    async def get_tool(self, tool_name: str, client_id: Optional[str] = None) -> Dict[str, Any]:
+    async def get_tool(
+        self, tool_name: str, client_id: Optional[str] = None
+    ) -> Dict[str, Any]:
         """Get detailed information about a specific tool."""
         # Check permissions
         if client_id:
@@ -153,7 +169,9 @@ class SignalCLIMCPServer:
             if cached_result:
                 logger.info(f"Cache hit for request {request.id}")
                 self.request_counter.labels(
-                    method="execute", client=client_id or "anonymous", status="cache_hit"
+                    method="execute",
+                    client=client_id or "anonymous",
+                    status="cache_hit",
                 ).inc()
                 return MCPResponse(id=request.id, result=cached_result)
 
@@ -162,7 +180,9 @@ class SignalCLIMCPServer:
             tool = self.tool_registry.get_tool(tool_name)
 
             if not tool:
-                raise HTTPException(status_code=404, detail=f"Tool '{tool_name}' not found")
+                raise HTTPException(
+                    status_code=404, detail=f"Tool '{tool_name}' not found"
+                )
 
             # Execute tool
             if request.stream and tool.supports_streaming:
@@ -184,7 +204,9 @@ class SignalCLIMCPServer:
 
             # Record metrics
             latency = asyncio.get_event_loop().time() - start_time
-            self.latency_histogram.labels(method="execute", tool=tool_name).observe(latency)
+            self.latency_histogram.labels(method="execute", tool=tool_name).observe(
+                latency
+            )
             self.request_counter.labels(
                 method="execute", client=client_id or "anonymous", status="success"
             ).inc()
@@ -226,9 +248,12 @@ class SignalCLIMCPServer:
             if client_id:
                 client = await self.permission_manager.get_client(client_id)
                 for tool_call in tools:
-                    if not await self.permission_manager.can_access_tool(client, tool_call.tool):
+                    if not await self.permission_manager.can_access_tool(
+                        client, tool_call.tool
+                    ):
                         raise HTTPException(
-                            status_code=403, detail=f"Access denied for tool '{tool_call.tool}'"
+                            status_code=403,
+                            detail=f"Access denied for tool '{tool_call.tool}'",
                         )
 
             # Execute chain
@@ -327,6 +352,128 @@ class SignalCLIMCPServer:
             "metadata": client.metadata,
         }
 
+    async def handle_mcp_request(self, request: Request) -> JSONResponse:
+        """Handle MCP JSON-RPC requests."""
+        try:
+            # Parse request body
+            body = await request.json()
+            
+            # Validate MCP request format
+            if not validate_mcp_request(body):
+                return JSONResponse(
+                    status_code=400,
+                    content=create_error_response(
+                        body.get("id", None),
+                        ErrorCode.INVALID_REQUEST,
+                        "Invalid MCP request format"
+                    )
+                )
+            
+            # Create MCPRequest object
+            mcp_request = MCPRequest(**body)
+            
+            # Handle based on method
+            if mcp_request.method == MCPMethod.INITIALIZE:
+                result = await self._handle_initialize(mcp_request)
+            elif mcp_request.method == MCPMethod.LIST_TOOLS:
+                result = await self.list_tools()
+            elif mcp_request.method == MCPMethod.CALL_TOOL:
+                response = await self.execute_tool(mcp_request)
+                result = response.result
+            else:
+                return JSONResponse(
+                    status_code=400,
+                    content=create_error_response(
+                        mcp_request.id,
+                        ErrorCode.METHOD_NOT_FOUND,
+                        f"Method {mcp_request.method} not found"
+                    )
+                )
+                
+            return JSONResponse(
+                content=create_success_response(mcp_request.id, result)
+            )
+            
+        except Exception as e:
+            logger.error(f"Error handling MCP request: {e}")
+            return JSONResponse(
+                status_code=500,
+                content=create_error_response(
+                    body.get("id", None) if "body" in locals() else None,
+                    ErrorCode.INTERNAL_ERROR,
+                    str(e)
+                )
+            )
+    
+    async def handle_mcp_websocket(self, websocket: WebSocket):
+        """Handle MCP WebSocket connections."""
+        await websocket.accept()
+        session_id = str(uuid.uuid4())
+        session = MCPSession(session_id)
+        
+        try:
+            while True:
+                # Receive message
+                data = await websocket.receive_json()
+                
+                # Validate request
+                if not validate_mcp_request(data):
+                    await websocket.send_json(
+                        create_error_response(
+                            data.get("id", None),
+                            ErrorCode.INVALID_REQUEST,
+                            "Invalid MCP request"
+                        )
+                    )
+                    continue
+                    
+                # Create request object
+                mcp_request = MCPRequest(**data)
+                
+                # Handle request
+                if mcp_request.method == MCPMethod.INITIALIZE:
+                    result = await self._handle_initialize(mcp_request)
+                    session.initialized = True
+                elif mcp_request.method == MCPMethod.LIST_TOOLS:
+                    result = await self.list_tools()
+                elif mcp_request.method == MCPMethod.CALL_TOOL:
+                    response = await self.execute_tool(mcp_request)
+                    result = response.result
+                else:
+                    await websocket.send_json(
+                        create_error_response(
+                            mcp_request.id,
+                            ErrorCode.METHOD_NOT_FOUND,
+                            f"Method {mcp_request.method} not found"
+                        )
+                    )
+                    continue
+                    
+                # Send response
+                await websocket.send_json(
+                    create_success_response(mcp_request.id, result)
+                )
+                
+        except Exception as e:
+            logger.error(f"WebSocket error: {e}")
+        finally:
+            await websocket.close()
+            
+    async def _handle_initialize(self, request: MCPRequest) -> Dict[str, Any]:
+        """Handle initialization request."""
+        return {
+            "protocolVersion": MCP_VERSION,
+            "serverInfo": {
+                "name": "SignalCLI-MCP",
+                "version": "1.0.0"
+            },
+            "capabilities": {
+                "tools": True,
+                "streaming": True,
+                "context": True
+            }
+        }
+
     async def health_check(self) -> Dict[str, Any]:
         """Health check endpoint."""
         return {
@@ -340,17 +487,14 @@ class SignalCLIMCPServer:
 
     async def get_metrics(self) -> Dict[str, Any]:
         """Get server metrics."""
+        # Get metrics from the metrics collector
+        metrics_data = metrics.get_metrics() if metrics else {}
+        
         return {
-            "requests": {
-                "total": self.request_counter._value._value,
-                "by_method": self.request_counter.collect()[0].samples,
-            },
-            "latency": {
-                "histogram": self.latency_histogram.collect()[0].samples,
-            },
+            "metrics": metrics_data,
             "cache": await self.cache.get_stats(),
             "streams": {
                 "active": self.streaming_handler.active_stream_count(),
-                "total_created": self.streaming_handler.total_streams_created,
+                "total_created": getattr(self.streaming_handler, 'total_streams_created', 0),
             },
         }

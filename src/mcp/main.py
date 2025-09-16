@@ -16,7 +16,9 @@ from .cache import MCPCache
 from ..application.rag.pipeline import RAGPipeline
 from ..infrastructure.llm import get_llm_engine
 from ..infrastructure.vector_store import get_vector_store
-from ..infrastructure.embeddings.sentence_transformer import SentenceTransformerEmbedding
+from ..infrastructure.embeddings.sentence_transformer import (
+    SentenceTransformerEmbedding,
+)
 from ..infrastructure.cache import get_cache
 from ..utils.config import get_config
 from ..utils.logger import get_logger

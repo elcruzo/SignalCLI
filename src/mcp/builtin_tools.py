@@ -54,7 +54,9 @@ class VectorSearchTool(Tool):
         self.vector_store = vector_store
         self.embedding_model = embedding_model
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """Execute vector search."""
         query = params["query"]
         top_k = params.get("top_k", 10)
@@ -120,7 +122,9 @@ class TextGenerationTool(Tool):
         )
         self.llm_engine = llm_engine
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """Execute text generation."""
         prompt = params["prompt"]
         max_tokens = params.get("max_tokens", 500)
@@ -180,7 +184,10 @@ class StructuredGenerationTool(Tool):
                 "type": "object",
                 "properties": {
                     "prompt": {"type": "string"},
-                    "schema": {"type": "object", "description": "JSON schema for output"},
+                    "schema": {
+                        "type": "object",
+                        "description": "JSON schema for output",
+                    },
                     "examples": {
                         "type": "array",
                         "items": {"type": "object"},
@@ -202,7 +209,9 @@ class StructuredGenerationTool(Tool):
         self.llm_engine = llm_engine
         self.jsonformer_validator = jsonformer_validator
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """Execute structured generation."""
         prompt = params["prompt"]
         schema = params["schema"]
@@ -295,7 +304,9 @@ class TextAnalysisTool(Tool):
         self.llm_engine = llm_engine
         self.embedding_model = embedding_model
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """Execute text analysis."""
         text = params["text"]
         analyses = params.get("analyses", ["sentiment", "entities", "topics"])
@@ -401,7 +412,9 @@ class TextAnalysisTool(Tool):
         avg_sentence_length = len(words) / len(sentences) if sentences else 0
 
         # Flesch Reading Ease approximation
-        reading_ease = 206.835 - 1.015 * avg_sentence_length - 84.6 * (avg_word_length / 4.7)
+        reading_ease = (
+            206.835 - 1.015 * avg_sentence_length - 84.6 * (avg_word_length / 4.7)
+        )
         reading_ease = max(0, min(100, reading_ease))
 
         # Grade level
@@ -456,7 +469,9 @@ class MultiModalTool(Tool):
         self.llm_engine = llm_engine
         self.vision_model = vision_model
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> Any:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> Any:
         """Execute multi-modal analysis."""
         text = params.get("text", "")
         image_urls = params.get("image_urls", [])
@@ -477,7 +492,11 @@ class MultiModalTool(Tool):
         else:
             result = "Invalid task or missing inputs"
 
-        return {"result": result, "task": task, "metadata": {"input_count": len(image_urls)}}
+        return {
+            "result": result,
+            "task": task,
+            "metadata": {"input_count": len(image_urls)},
+        }
 
     async def _describe_images(self, image_urls: List[str], context_text: str) -> str:
         """Describe images with optional context."""

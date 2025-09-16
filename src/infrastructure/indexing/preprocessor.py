@@ -13,6 +13,7 @@ logger = get_logger(__name__)
 @dataclass
 class PreprocessingConfig:
     """Configuration for document preprocessing."""
+
     remove_extra_whitespace: bool = True
     remove_empty_lines: bool = True
     normalize_unicode: bool = True
@@ -35,10 +36,10 @@ class DocumentPreprocessor:
     async def preprocess(self, document: Document) -> Document:
         """
         Preprocess a document.
-        
+
         Args:
             document: Document to preprocess
-            
+
         Returns:
             Preprocessed document
         """
@@ -54,7 +55,7 @@ class DocumentPreprocessor:
             content = self._preserve_structure(content)
 
             processed_length = len(content)
-            
+
             logger.debug(
                 f"Preprocessed document {document.source}: "
                 f"{original_length} -> {processed_length} chars"
@@ -86,29 +87,29 @@ class DocumentPreprocessor:
             return text
 
         import unicodedata
-        
+
         # Normalize to NFC form
-        text = unicodedata.normalize('NFC', text)
-        
+        text = unicodedata.normalize("NFC", text)
+
         # Replace common unicode characters
         replacements = {
             # Smart quotes
             '"': '"',
             '"': '"',
-            ''': "'",
-            ''': "'",
+            """: "'",
+            """: "'",
             # Dashes
-            '—': '-',
-            '–': '-',
+            "—": "-",
+            "–": "-",
             # Spaces
-            '\u00A0': ' ',  # Non-breaking space
-            '\u2009': ' ',  # Thin space
-            '\u200A': ' ',  # Hair space
+            "\u00a0": " ",  # Non-breaking space
+            "\u2009": " ",  # Thin space
+            "\u200a": " ",  # Hair space
         }
-        
+
         for old, new in replacements.items():
             text = text.replace(old, new)
-        
+
         return text
 
     def _clean_whitespace(self, text: str) -> str:
@@ -117,69 +118,69 @@ class DocumentPreprocessor:
             return text
 
         # Replace multiple spaces with single space
-        text = re.sub(r' +', ' ', text)
-        
+        text = re.sub(r" +", " ", text)
+
         # Replace tabs with spaces
-        text = text.replace('\t', ' ')
-        
+        text = text.replace("\t", " ")
+
         # Remove trailing/leading whitespace from lines
-        lines = [line.strip() for line in text.split('\n')]
-        
+        lines = [line.strip() for line in text.split("\n")]
+
         if self.config.remove_empty_lines:
             # Remove empty lines
             lines = [line for line in lines if line]
-        
-        return '\n'.join(lines)
+
+        return "\n".join(lines)
 
     def _remove_unwanted_patterns(self, text: str) -> str:
         """Remove unwanted patterns from text."""
-        
+
         if self.config.remove_urls:
             # Remove URLs
-            url_pattern = r'https?://[^\s]+'
-            text = re.sub(url_pattern, '', text)
-        
+            url_pattern = r"https?://[^\s]+"
+            text = re.sub(url_pattern, "", text)
+
         if self.config.remove_emails:
             # Remove email addresses
-            email_pattern = r'\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b'
-            text = re.sub(email_pattern, '', text)
-        
+            email_pattern = r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b"
+            text = re.sub(email_pattern, "", text)
+
         if self.config.remove_phone_numbers:
             # Remove phone numbers (simple pattern)
-            phone_pattern = r'\b\d{3}-\d{3}-\d{4}\b|\b\(\d{3}\)\s*\d{3}-\d{4}\b'
-            text = re.sub(phone_pattern, '', text)
-        
+            phone_pattern = r"\b\d{3}-\d{3}-\d{4}\b|\b\(\d{3}\)\s*\d{3}-\d{4}\b"
+            text = re.sub(phone_pattern, "", text)
+
         if self.config.remove_code_blocks:
             # Remove code blocks (markdown style)
-            code_pattern = r'```[\s\S]*?```|`[^`]+`'
-            text = re.sub(code_pattern, '', text)
-        
+            code_pattern = r"```[\s\S]*?```|`[^`]+`"
+            text = re.sub(code_pattern, "", text)
+
         if self.config.remove_special_chars:
             # Remove excessive special characters
             # Keep basic punctuation but remove repetitive chars
-            text = re.sub(r'[^\w\s.,!?;:\'"()\[\]{}-]+', '', text)
-            text = re.sub(r'(.)\1{3,}', r'\1\1', text)  # Max 2 repetitions
-        
+            text = re.sub(r'[^\w\s.,!?;:\'"()\[\]{}-]+', "", text)
+            text = re.sub(r"(.)\1{3,}", r"\1\1", text)  # Max 2 repetitions
+
         return text
 
     def _filter_lines(self, text: str) -> str:
         """Filter lines based on length criteria."""
-        lines = text.split('\n')
+        lines = text.split("\n")
         filtered_lines = []
-        
+
         for line in lines:
             line_len = len(line.strip())
-            
+
             # Skip lines that are too short or too long
             if line_len < self.config.min_line_length:
                 continue
             if line_len > self.config.max_line_length:
                 # Truncate very long lines
-                line = line[:self.config.max_line_length] + '...'
-            
+                line = line[: self.config.max_line_length] + "..."
+
             filtered_lines.append(line)
-        
-        return '\n'.join(filtered_lines)
+
+        return "\n".join(filtered_lines)
 
     def _preserve_structure(self, text: str) -> str:
         """Preserve important document structure."""
@@ -187,25 +188,25 @@ class DocumentPreprocessor:
             return text
 
         # Preserve headers (markdown style)
-        text = re.sub(r'^(#+\s+.+)$', r'\n\1\n', text, flags=re.MULTILINE)
-        
+        text = re.sub(r"^(#+\s+.+)$", r"\n\1\n", text, flags=re.MULTILINE)
+
         # Preserve list items
-        text = re.sub(r'^(\s*[*+-]\s+.+)$', r'\1', text, flags=re.MULTILINE)
-        text = re.sub(r'^(\s*\d+\.\s+.+)$', r'\1', text, flags=re.MULTILINE)
-        
+        text = re.sub(r"^(\s*[*+-]\s+.+)$", r"\1", text, flags=re.MULTILINE)
+        text = re.sub(r"^(\s*\d+\.\s+.+)$", r"\1", text, flags=re.MULTILINE)
+
         # Ensure paragraph breaks
-        text = re.sub(r'\n\n+', '\n\n', text)
-        
+        text = re.sub(r"\n\n+", "\n\n", text)
+
         return text.strip()
 
     def preprocess_batch(self, documents: List[Document]) -> List[Document]:
         """Preprocess multiple documents."""
         preprocessed = []
-        
+
         for doc in documents:
             processed_doc = self.preprocess(doc)
             preprocessed.append(processed_doc)
-        
+
         return preprocessed
 
     def get_preprocessing_stats(self, documents: List[Document]) -> Dict[str, Any]:
@@ -216,18 +217,20 @@ class DocumentPreprocessor:
         total_docs = len(documents)
         original_lengths = []
         processed_lengths = []
-        
+
         for doc in documents:
-            if 'original_length' in doc.metadata:
-                original_lengths.append(doc.metadata['original_length'])
-                processed_lengths.append(doc.metadata['processed_length'])
-        
+            if "original_length" in doc.metadata:
+                original_lengths.append(doc.metadata["original_length"])
+                processed_lengths.append(doc.metadata["processed_length"])
+
         if not original_lengths:
             return {"error": "No preprocessing metadata found"}
 
         total_original = sum(original_lengths)
         total_processed = sum(processed_lengths)
-        reduction_ratio = 1 - (total_processed / total_original) if total_original > 0 else 0
+        reduction_ratio = (
+            1 - (total_processed / total_original) if total_original > 0 else 0
+        )
 
         return {
             "total_documents": total_docs,
@@ -242,5 +245,5 @@ class DocumentPreprocessor:
                 "normalize_unicode": self.config.normalize_unicode,
                 "min_line_length": self.config.min_line_length,
                 "max_line_length": self.config.max_line_length,
-            }
+            },
         }

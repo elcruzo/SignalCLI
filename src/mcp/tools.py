@@ -173,6 +173,7 @@ class ToolRegistry:
 
 # Built-in SignalCLI tools
 
+
 class RAGQueryTool(Tool):
     """RAG query tool for SignalCLI."""
 
@@ -181,11 +182,18 @@ class RAGQueryTool(Tool):
         super().__init__(
             name="rag_query",
             description="Query the knowledge base using RAG",
-            capabilities=[ToolCapability.QUERY, ToolCapability.RETRIEVE, ToolCapability.ANALYZE],
+            capabilities=[
+                ToolCapability.QUERY,
+                ToolCapability.RETRIEVE,
+                ToolCapability.ANALYZE,
+            ],
             input_schema={
                 "type": "object",
                 "properties": {
-                    "query": {"type": "string", "description": "The query to search for"},
+                    "query": {
+                        "type": "string",
+                        "description": "The query to search for",
+                    },
                     "top_k": {
                         "type": "integer",
                         "description": "Number of documents to retrieve",
@@ -211,7 +219,9 @@ class RAGQueryTool(Tool):
         )
         self.rag_pipeline = rag_pipeline
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """Execute RAG query - returns MCP-compliant content array."""
         query = params["query"]
         top_k = params.get("top_k", 5)
@@ -220,28 +230,21 @@ class RAGQueryTool(Tool):
         result = await self.rag_pipeline.query(query, top_k=top_k, filters=filters)
 
         # Return MCP-compliant content array
-        content = [
-            {
-                "type": "text",
-                "text": result.answer
-            }
-        ]
-        
+        content = [{"type": "text", "text": result.answer}]
+
         # Add sources as additional content if available
         if result.sources:
-            sources_text = "\n\nSources:\n" + "\n".join(f"- {src}" for src in result.sources)
-            content.append({
-                "type": "text",
-                "text": sources_text
-            })
-        
+            sources_text = "\n\nSources:\n" + "\n".join(
+                f"- {src}" for src in result.sources
+            )
+            content.append({"type": "text", "text": sources_text})
+
         # Add confidence as metadata
         if result.confidence:
-            content.append({
-                "type": "text",
-                "text": f"\nConfidence: {result.confidence:.2f}"
-            })
-        
+            content.append(
+                {"type": "text", "text": f"\nConfidence: {result.confidence:.2f}"}
+            )
+
         return content
 
     async def stream_execute(
@@ -252,7 +255,9 @@ class RAGQueryTool(Tool):
         top_k = params.get("top_k", 5)
         filters = params.get("filters", {})
 
-        async for chunk in self.rag_pipeline.stream_query(query, top_k=top_k, filters=filters):
+        async for chunk in self.rag_pipeline.stream_query(
+            query, top_k=top_k, filters=filters
+        ):
             yield {"chunk": chunk, "type": "partial"}
 
         # Yield final result
@@ -307,7 +312,9 @@ class DocumentIndexTool(Tool):
         self.vector_store = vector_store
         self.document_processor = document_processor
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """Index documents - returns MCP-compliant content array."""
         documents = params["documents"]
         chunk_size = params.get("chunk_size", 512)
@@ -342,16 +349,15 @@ class DocumentIndexTool(Tool):
         content = [
             {
                 "type": "text",
-                "text": f"Successfully indexed {indexed_count} documents into {total_chunks} chunks."
+                "text": f"Successfully indexed {indexed_count} documents into {total_chunks} chunks.",
             }
         ]
-        
+
         if errors:
-            content.append({
-                "type": "text",
-                "text": "\nErrors encountered:\n" + "\n".join(errors)
-            })
-        
+            content.append(
+                {"type": "text", "text": "\nErrors encountered:\n" + "\n".join(errors)}
+            )
+
         return content
 
 
@@ -394,7 +400,9 @@ class SummarizationTool(Tool):
         )
         self.llm_engine = llm_engine
 
-    async def execute(self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
+    async def execute(
+        self, params: Dict[str, Any], context: Optional[Dict[str, Any]] = None
+    ) -> List[Dict[str, Any]]:
         """Summarize text - returns MCP-compliant content array."""
         text = params["text"]
         max_length = params.get("max_length", 200)
@@ -412,28 +420,27 @@ class SummarizationTool(Tool):
 
         # Extract key points
         key_points_prompt = f"List the key points from this text:\n\n{text}"
-        key_points_response = await self.llm_engine.generate(key_points_prompt, max_tokens=200)
+        key_points_response = await self.llm_engine.generate(
+            key_points_prompt, max_tokens=200
+        )
         key_points = [p.strip() for p in key_points_response.split("\n") if p.strip()]
 
         # Return MCP-compliant content array
-        content = [
-            {
-                "type": "text",
-                "text": summary
-            }
-        ]
-        
+        content = [{"type": "text", "text": summary}]
+
         if key_points:
-            content.append({
-                "type": "text",
-                "text": "\n\nKey Points:\n" + "\n".join(f"• {point}" for point in key_points[:5])
-            })
-        
-        content.append({
-            "type": "text",
-            "text": f"\n\nWord count: {len(summary.split())}"
-        })
-        
+            content.append(
+                {
+                    "type": "text",
+                    "text": "\n\nKey Points:\n"
+                    + "\n".join(f"• {point}" for point in key_points[:5]),
+                }
+            )
+
+        content.append(
+            {"type": "text", "text": f"\n\nWord count: {len(summary.split())}"}
+        )
+
         return content
 
 

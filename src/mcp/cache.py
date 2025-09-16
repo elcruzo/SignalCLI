@@ -295,7 +295,9 @@ class MCPCache:
             # 5. Expiration (expired or nearly expired get highest score)
             if entry.ttl:
                 time_to_expire = (entry.created_at + entry.ttl - now).total_seconds()
-                expiry_score = 10.0 if time_to_expire <= 0 else 1.0 / (time_to_expire + 1)
+                expiry_score = (
+                    10.0 if time_to_expire <= 0 else 1.0 / (time_to_expire + 1)
+                )
             else:
                 expiry_score = 0.0
 
@@ -375,7 +377,9 @@ class MCPCache:
             self._misses = stats.get("misses", 0)
             self._evictions = stats.get("evictions", 0)
 
-            logger.info(f"Cache loaded from {self.persistence_path}: {len(self._cache)} entries")
+            logger.info(
+                f"Cache loaded from {self.persistence_path}: {len(self._cache)} entries"
+            )
 
         except FileNotFoundError:
             logger.info("No cache file found, starting with empty cache")

@@ -61,7 +61,8 @@ class MCPIntegration:
         if (
             not force_refresh
             and self._tools_cache
-            and (asyncio.get_event_loop().time() - self._last_cache_update) < self._cache_ttl
+            and (asyncio.get_event_loop().time() - self._last_cache_update)
+            < self._cache_ttl
         ):
             return self._tools_cache
 
@@ -106,9 +107,7 @@ class MCPIntegration:
             logger.error(f"Failed to execute MCP tool {tool_name}: {e}")
             raise
 
-    async def execute_chain(
-        self, tool_calls: List[Dict[str, Any]]
-    ) -> Dict[str, Any]:
+    async def execute_chain(self, tool_calls: List[Dict[str, Any]]) -> Dict[str, Any]:
         """Execute a chain of MCP tools."""
         try:
             async with self.session.post(
@@ -179,7 +178,7 @@ class MCPToolProxy:
     ) -> Dict[str, Any]:
         """Execute tool with retry logic."""
         last_error = None
-        
+
         for attempt in range(max_retries):
             try:
                 result = await self.mcp.execute_tool(tool_name, arguments)
@@ -188,14 +187,16 @@ class MCPToolProxy:
             except Exception as e:
                 last_error = e
                 if attempt < max_retries - 1:
-                    wait_time = backoff_factor ** attempt
+                    wait_time = backoff_factor**attempt
                     logger.warning(
                         f"Tool execution failed (attempt {attempt + 1}/{max_retries}), "
                         f"retrying in {wait_time}s: {e}"
                     )
                     await asyncio.sleep(wait_time)
                 else:
-                    self._record_execution(tool_name, arguments, None, success=False, error=str(e))
+                    self._record_execution(
+                        tool_name, arguments, None, success=False, error=str(e)
+                    )
                     raise
 
     async def execute_with_fallback(
@@ -220,15 +221,17 @@ class MCPToolProxy:
         error: Optional[str] = None,
     ):
         """Record tool execution for history."""
-        self._execution_history.append({
-            "timestamp": asyncio.get_event_loop().time(),
-            "tool": tool_name,
-            "arguments": arguments,
-            "result": result,
-            "success": success,
-            "error": error,
-        })
-        
+        self._execution_history.append(
+            {
+                "timestamp": asyncio.get_event_loop().time(),
+                "tool": tool_name,
+                "arguments": arguments,
+                "result": result,
+                "success": success,
+                "error": error,
+            }
+        )
+
         # Keep only last 100 executions
         if len(self._execution_history) > 100:
             self._execution_history = self._execution_history[-100:]
@@ -237,11 +240,11 @@ class MCPToolProxy:
         """Get execution statistics."""
         if not self._execution_history:
             return {"total": 0, "success": 0, "failure": 0, "success_rate": 0.0}
-        
+
         total = len(self._execution_history)
         success = sum(1 for e in self._execution_history if e["success"])
         failure = total - success
-        
+
         return {
             "total": total,
             "success": success,

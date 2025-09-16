@@ -7,7 +7,7 @@ from .preprocessor import DocumentPreprocessor
 
 __all__ = [
     "DocumentChunker",
-    "ChunkingStrategy", 
+    "ChunkingStrategy",
     "DocumentIndexer",
     "DocumentLoader",
     "FileLoader",

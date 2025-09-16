@@ -35,10 +35,10 @@ class DocumentIndexer:
     async def index_file(self, file_path: Union[str, Path]) -> int:
         """
         Index a single file.
-        
+
         Args:
             file_path: Path to file to index
-            
+
         Returns:
             Number of chunks indexed
         """
@@ -66,19 +66,19 @@ class DocumentIndexer:
             raise IndexingError(f"Failed to index file: {e}")
 
     async def index_directory(
-        self, 
+        self,
         directory_path: Union[str, Path],
         patterns: Optional[List[str]] = None,
         recursive: bool = True,
     ) -> int:
         """
         Index all files in a directory.
-        
+
         Args:
             directory_path: Path to directory
             patterns: File patterns to include (e.g., ["*.txt", "*.md"])
             recursive: Whether to search subdirectories
-            
+
         Returns:
             Total number of chunks indexed
         """
@@ -100,7 +100,7 @@ class DocumentIndexer:
             # Count successful indexing
             total_chunks = 0
             errors = 0
-            
+
             for i, result in enumerate(results):
                 if isinstance(result, Exception):
                     logger.error(f"Failed to index {files[i]}: {result}")
@@ -120,11 +120,11 @@ class DocumentIndexer:
     async def index_text(self, text: str, source: str = "text_input") -> int:
         """
         Index raw text content.
-        
+
         Args:
             text: Text content to index
             source: Source identifier
-            
+
         Returns:
             Number of chunks indexed
         """
@@ -136,7 +136,7 @@ class DocumentIndexer:
                 content=text,
                 source=source,
                 chunk_id=f"{source}#0",
-                metadata={"indexed_at": asyncio.get_event_loop().time()}
+                metadata={"indexed_at": asyncio.get_event_loop().time()},
             )
 
             # Preprocess
@@ -155,10 +155,10 @@ class DocumentIndexer:
     async def index_url(self, url: str) -> int:
         """
         Index content from a URL.
-        
+
         Args:
             url: URL to index
-            
+
         Returns:
             Number of chunks indexed
         """
@@ -191,10 +191,12 @@ class DocumentIndexer:
 
             # Generate embeddings in batches
             batch_size = 32
-            batches = [chunks[i:i + batch_size] for i in range(0, len(chunks), batch_size)]
+            batches = [
+                chunks[i : i + batch_size] for i in range(0, len(chunks), batch_size)
+            ]
 
             indexed_count = 0
-            
+
             for batch in batches:
                 # Extract text for embedding
                 texts = [doc.content for doc in batch]
@@ -218,19 +220,30 @@ class DocumentIndexer:
             raise IndexingError(f"Failed to index chunks: {e}")
 
     def _find_files(
-        self, 
+        self,
         directory: Path,
         patterns: Optional[List[str]] = None,
         recursive: bool = True,
     ) -> List[Path]:
         """Find files matching patterns."""
         files = []
-        
+
         if patterns is None:
             # Default patterns for common text files
             patterns = [
-                "*.txt", "*.md", "*.rst", "*.py", "*.js", "*.html", "*.css",
-                "*.json", "*.yaml", "*.yml", "*.csv", "*.xml", "*.tex"
+                "*.txt",
+                "*.md",
+                "*.rst",
+                "*.py",
+                "*.js",
+                "*.html",
+                "*.css",
+                "*.json",
+                "*.yaml",
+                "*.yml",
+                "*.csv",
+                "*.xml",
+                "*.tex",
             ]
 
         if recursive:
@@ -250,10 +263,10 @@ class DocumentIndexer:
     async def reindex_source(self, source: str) -> int:
         """
         Reindex all chunks from a source.
-        
+
         Args:
             source: Source identifier to reindex
-            
+
         Returns:
             Number of chunks reindexed
         """
